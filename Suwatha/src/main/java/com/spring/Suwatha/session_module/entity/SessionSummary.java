@@ -1,20 +1,23 @@
 package com.spring.Suwatha.session_module.entity;
 
 import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
+
+@Entity
+@Table(name = "session_summary")
+@Data
+@NoArgsConstructor
 public class SessionSummary {
     
     @Id
     @Column(name = "session_id")
     private Long id;
     
-    /**
-     * A One-to-One relationship linking this summary directly to its session.
-     * `mapsId` indicates that the primary key of this entity is mapped from the Session entity.
-     */
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
     @JoinColumn(name = "session_id")

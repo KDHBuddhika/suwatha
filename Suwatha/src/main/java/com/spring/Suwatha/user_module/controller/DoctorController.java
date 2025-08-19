@@ -4,11 +4,9 @@ package com.spring.Suwatha.user_module.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spring.Suwatha.shared.exception.EmptyFileException;
-import com.spring.Suwatha.user_module.dto.therapist.PasswordChangeDto;
-import com.spring.Suwatha.user_module.dto.therapist.TherapistCreateDto;
-import com.spring.Suwatha.user_module.dto.therapist.TherapistDetailsUpdateDto;
-import com.spring.Suwatha.user_module.dto.therapist.TherapistViewDto;
+import com.spring.Suwatha.user_module.dto.therapist.*;
 import com.spring.Suwatha.user_module.entity.Therapist;
+import com.spring.Suwatha.user_module.service.TherapistNotificationService;
 import com.spring.Suwatha.user_module.service.TherapistService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -27,6 +26,9 @@ public class DoctorController {
     
     @Autowired
     private TherapistService therapistService;
+    
+    @Autowired
+    private TherapistNotificationService notificationService;
 
    @PostMapping("/create-Doctor")
    @PreAuthorize("hasRole('ADMIN')")
@@ -79,7 +81,23 @@ public class DoctorController {
        return ResponseEntity.ok(therapistViewDto);
     }
     
-   
+    
+    
+    @GetMapping("/me/notifications/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','THERAPIST')")
+    public ResponseEntity<List<TherapistNotificationViewDto>> getMyNotifications(@PathVariable Long id) {
+       
+        List<TherapistNotificationViewDto> notifications = notificationService.getNotificationsForTherapist(id);
+        return ResponseEntity.ok(notifications);
+    }
+    
+    @PutMapping("/notifications/{nid}/read/{pid}")
+    public ResponseEntity<TherapistNotificationViewDto> markNotificationAsRead(@PathVariable(name = "nid") Long nid,@PathVariable(name = "pid") Long pid) {
+    
+        TherapistNotificationViewDto updatedNotification = notificationService.markAsRead(nid, pid);
+        return ResponseEntity.ok(updatedNotification);
+    }
+    
     
     
     
