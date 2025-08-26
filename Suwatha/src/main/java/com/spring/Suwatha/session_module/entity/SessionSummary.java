@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class SessionSummary {
     
     @Id
-    @Column(name = "session_id")
+    @Column(name = "id")
     private Long id;
     
     @OneToOne(fetch = FetchType.LAZY)

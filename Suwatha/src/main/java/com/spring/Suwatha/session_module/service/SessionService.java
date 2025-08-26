@@ -1,13 +1,12 @@
 package com.spring.Suwatha.session_module.service;
 
 
-import com.spring.Suwatha.session_module.dto.CommunicationType;
-import com.spring.Suwatha.session_module.dto.SessionRequestDto;
-import com.spring.Suwatha.session_module.dto.SessionStatus;
-import com.spring.Suwatha.session_module.dto.SessionViewDto;
+import com.spring.Suwatha.session_module.dto.*;
 import com.spring.Suwatha.session_module.entity.Patient;
 import com.spring.Suwatha.session_module.entity.Session;
+import com.spring.Suwatha.session_module.entity.SessionFeedback;
 import com.spring.Suwatha.session_module.repo.PatientRepository;
+import com.spring.Suwatha.session_module.repo.SessionFeedbackRepository;
 import com.spring.Suwatha.session_module.repo.SessionRepository;
 import com.spring.Suwatha.shared.email.EmailService;
 import com.spring.Suwatha.shared.exception.AccessDeniedException;
@@ -33,9 +32,12 @@ public class SessionService {
     private PatientRepository patientRepository;
     private TherapistRepository therapistRepository;
     private SessionRepository sessionRepository;
+    private SessionFeedbackRepository feedbackRepository;
     private EmailService emailService;
     private  ActivityLogService activityLogService;
     private TherapistNotificationService notificationService;
+    
+    // -----------------------     Start session -----------------------------------------------
     
     @Transactional
     public SessionViewDto requestAndMatchSession(SessionRequestDto requestDto) {
@@ -112,6 +114,66 @@ public class SessionService {
     }
     
     
+    //---------------------------- End session -----------------------------------------
+    @Transactional
+    public void endSession (Long sessionId, UserDetails currentUser ){
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Session with ID \" + sessionId + \" not found."));
+        
+        if(session.getStatus() != SessionStatus.ACTIVE){
+            throw new IllegalStateException("Only an active session can be ended.");
+        }
+    
+        Therapist therapist = session.getTherapist();
+    
+        if (!therapist.getEmail().equals(currentUser.getUsername())) {
+            throw new AccessDeniedException("You are not authorized to end this session.");
+        }
+    
+        session.setStatus(SessionStatus.COMPLETED);
+        session.setEndTime(LocalDateTime.now());
+        sessionRepository.save(session);
+    
+        therapist.setCurrentStatus(TherapistStatus.AVAILABLE);
+        therapistRepository.save(therapist);
+    
+        // 5. Log the activity
+        String logMessage = String.format("Dr. %s completed a session with %s.",
+                therapist.getName(),
+                session.getPatient().getAnonymousHandle()
+        );
+        activityLogService.logActivity(logMessage);
+    }
+    
+    
+    
+    //-------------- --------------- Submit feedback by session id--------------------
+    
+    @Transactional
+    public void submitFeedback(FeedbackCreateDto dto) {
+        
+        Session session = sessionRepository.findById(dto.getSessionId())
+                .orElseThrow(() -> new ResourceNotFoundException("Session with ID " + dto.getSessionId() + " not found. Cannot submit feedback."));
+        
+        if (session.getStatus() != SessionStatus.COMPLETED) {
+            throw new IllegalStateException("Feedback can only be submitted for a completed session.");
+        }
+        
+        
+        if (feedbackRepository.existsById(session.getId())) {
+            throw new IllegalStateException("Feedback has already been submitted for this session.");
+        }
+        
+        // 4. If all checks pass, create and save the new feedback entity.
+        SessionFeedback feedback = new SessionFeedback();
+        feedback.setSession(session); // Link it to the session
+        feedback.setRating(dto.getRating());
+        feedback.setComments(dto.getComments());
+        
+        feedbackRepository.save(feedback);
+    }
+    
+    
     
     
     
@@ -128,6 +190,8 @@ public class SessionService {
                    TherapistStatus.AVAILABLE, true);
         }
     }
+    
+    
     
     
     
@@ -152,6 +216,12 @@ public class SessionService {
         // e.g., simpMessagingTemplate.convertAndSendToUser(therapist.getEmail(), "/queue/sessions", newSessionPayload);
         System.out.println("WebSocket notification sent to therapist: " + therapist.getEmail() + " for session URL: " + sessionUrl);
     }
+    
+    
+   
+    
+    
+    
     
     
 }
