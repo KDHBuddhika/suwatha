@@ -10,6 +10,8 @@ import com.spring.Suwatha.session_module.entity.Session;
 import com.spring.Suwatha.session_module.repo.PatientRepository;
 import com.spring.Suwatha.session_module.repo.SessionRepository;
 import com.spring.Suwatha.shared.email.EmailService;
+import com.spring.Suwatha.shared.exception.AccessDeniedException;
+import com.spring.Suwatha.shared.exception.IllegalStateException;
 import com.spring.Suwatha.shared.exception.ResourceNotFoundException;
 import com.spring.Suwatha.user_module.entity.Therapist;
 import com.spring.Suwatha.user_module.entity.TherapistStatus;
@@ -17,6 +19,7 @@ import com.spring.Suwatha.user_module.repository.TherapistRepository;
 import com.spring.Suwatha.user_module.service.TherapistNotificationService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -74,6 +77,39 @@ public class SessionService {
         return new SessionViewDto(savedSession.getId(), therapist.getId(), therapist.getName(), sessionUrl);
     }
     
+    
+    
+    //------------------------------------------ Cancel session ------------------------------------------
+    public void cancelSession(Long sessionId, String reason , UserDetails currentUser){
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Session with ID " + sessionId + " not found."));
+    
+        if (session.getStatus() == SessionStatus.COMPLETED || session.getStatus() == SessionStatus.CANCELLED) {
+            throw new IllegalStateException("Session is already completed or cancelled and cannot be changed.");
+        }
+        
+        Therapist therapist = session.getTherapist();
+    
+        if (!therapist.getEmail().equals(currentUser.getUsername())) {
+            throw new AccessDeniedException("You are not authorized to cancel this session.");
+        }
+    
+        session.setStatus(SessionStatus.CANCELLED);
+        session.setEndTime(LocalDateTime.now()); // Mark when it was cancelled
+        therapist.setCurrentStatus(TherapistStatus.AVAILABLE);
+    
+        sessionRepository.save(session);
+        therapistRepository.save(therapist);
+    
+        String logMessage = String.format("Dr. %s cancelled a session with %s. Reason: %s",
+                therapist.getName(),
+                session.getPatient().getAnonymousHandle(),
+                reason
+        );
+        activityLogService.logActivity(logMessage);
+    
+    
+    }
     
     
     

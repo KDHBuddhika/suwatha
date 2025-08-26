@@ -47,6 +47,25 @@ public class AuthController {
     }
     
     
+    
+    @PostMapping("/doctor-login")
+    public AuthResponse createAuthenticationTokenDoctor(@RequestBody AuthRequestDto authRequest) throws Exception {
+    
+        System.out.println(authRequest);
+        // This code works for both Admins and Therapists now!
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(authRequest.getEmail(), authRequest.getPassword())
+        );
+        
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(authRequest.getEmail());
+        final String jwt = jwtUtil.generateToken(userDetails);
+        
+        return new AuthResponse(jwt);
+    }
+    
+    
+    
+    
     @PostMapping("/adminCreate")
     public ResponseEntity<?> createAdmin(@Valid @RequestBody AdminCreateDto adminDto) {
         adminService.createAdmin(adminDto);
