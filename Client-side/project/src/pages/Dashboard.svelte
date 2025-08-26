@@ -1,20 +1,192 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { authStore } from '../stores/auth';
-  import DashboardCard from '../components/DashboardCard.svelte';
-  import { Users, Calendar, Activity, TrendingUp, Clock, UserCheck } from 'lucide-svelte';
+  import KPICard from '../components/KPICard.svelte';
+  import StarRating from '../components/StarRating.svelte';
+  import PieChart from '../components/PieChart.svelte';
+  import BarChart from '../components/BarChart.svelte';
+  import DataTable from '../components/DataTable.svelte';
+  import { Video, Calendar, UserCheck, Star, Clock } from 'lucide-svelte';
+  import { get } from 'svelte/store';
+
 
   let currentTime = new Date().toLocaleString();
 
-  onMount(() => {
+
+    function formatTimestamp(isoString: string) {
+    if (!isoString) return { formattedDate: '', formattedTime: '' }; // Handle empty or null strings
+    const date = new Date(isoString);
+    const formattedDate = date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const formattedTime = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+    return { formattedDate, formattedTime };
+  }
+
+  onMount( () => {
     const timer = setInterval(() => {
       currentTime = new Date().toLocaleString();
     }, 1000);
+
+    // Fetch activity logs on component mount
+     fetchActivityLogs();
+
+     fetchTherapists(); 
 
     return () => clearInterval(timer);
   });
 
   $: user = $authStore.user;
+
+  // Sample data for charts
+  const pieChartData = [
+    { label: 'Anxiety', value: 45, color: '#2563eb' },
+    { label: 'Depression', value: 30, color: '#7c3aed' },
+    { label: 'Trauma', value: 15, color: '#dc2626' },
+    { label: 'Other', value: 10, color: '#059669' }
+  ];
+
+  const hourlyUsageData = Array.from({ length: 24 }, (_, i) => {
+    let sessions = 5; // Base sessions
+    if (i >= 14 && i <= 17) sessions += Math.floor(Math.random() * 15) + 10; // Afternoon peak
+    if (i >= 19 && i <= 22) sessions += Math.floor(Math.random() * 12) + 8; // Evening peak
+    if (i >= 1 && i <= 6) sessions = Math.floor(Math.random() * 3) + 1; // Low early morning
+    return { label: `${i}:00`, value: sessions };
+  });
+
+  const dailySessionData = Array.from({ length: 14 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (13 - i));
+    const sessions = Math.floor(Math.random() * 30) + 40;
+    return { 
+      label: date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }), 
+      value: sessions 
+    };
+  });
+
+  // const therapistData = [
+  //   { name: 'Dr. Sarah Johnson', email: 'sarah.johnson@suwatha.com', status: 'Available' },
+  //   { name: 'Dr. Michael Chen', email: 'michael.chen@suwatha.com', status: 'Busy' },
+  //   { name: 'Dr. Emily Rodriguez', email: 'emily.rodriguez@suwatha.com', status: 'Available' },
+  //   { name: 'Dr. James Wilson', email: 'james.wilson@suwatha.com', status: 'Offline' },
+  //   { name: 'Dr. Lisa Anderson', email: 'lisa.anderson@suwatha.com', status: 'Available' }
+  // ];
+
+  // Interface for Therapist data from the backend
+  interface Therapist {
+    id: number;
+    name: string;
+    email: string;
+    profilePictureUrl: string;
+    currentStatus: 'BUSY' | 'OFFLINE' | 'AVAILABLE'; // Use specific statuses for type safety
+    specializations: string[];
+    active: boolean;
+    handSignSpecialist: boolean;
+  }
+
+  // Interface for the data you'll pass to the DataTable
+  interface TherapistDisplayData {
+    name: string;
+    email: string;
+    status: string;
+  }
+
+  let therapistData: TherapistDisplayData[] = [];
+  let therapistError = '';
+
+  async function fetchTherapists() {
+    try {
+      const token = get(authStore).token;
+      const response = await fetch('http://localhost:8090/api/doctor/get-all-therapist', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Tell TypeScript what kind of data to expect from the API
+      const data: Therapist[] = await response.json();
+
+      // Map the full backend response to the fields you need for the table
+      therapistData = data.map(therapist => ({
+        name: therapist.name,
+        email: therapist.email,
+        status: therapist.currentStatus // Rename currentStatus to status
+      }));
+
+    } catch (error) {
+      console.error('Error fetching therapist data:', error);
+      therapistError = 'Failed to load therapist data.';
+    }
+  }
+
+  // const activityLogData = [
+  //   { id: 'ACT-001', description: 'Dr. Sarah Johnson started a new session with Patient #1247', timestamp: '2025-01-27 13:45:23' },
+  //   { id: 'ACT-002', description: 'New therapist Dr. Michael Chen registered to the platform', timestamp: '2025-01-27 13:32:15' },
+  //   { id: 'ACT-003', description: 'Session completed between Dr. Emily Rodriguez and Patient #1156', timestamp: '2025-01-27 13:28:47' },
+  //   { id: 'ACT-004', description: 'Dr. James Wilson updated their availability status to offline', timestamp: '2025-01-27 13:15:32' },
+  //   { id: 'ACT-005', description: 'Patient #1298 scheduled appointment with Dr. Lisa Anderson', timestamp: '2025-01-27 13:08:19' },
+  //   { id: 'ACT-006', description: 'Dr. Sarah Johnson completed patient assessment form', timestamp: '2025-01-27 12:55:41' },
+  //   { id: 'ACT-007', description: 'System backup completed successfully', timestamp: '2025-01-27 12:30:00' },
+  //   { id: 'ACT-008', description: 'Dr. Emily Rodriguez joined video call with Patient #1089', timestamp: '2025-01-27 12:22:18' }
+  // ];
+  // Remove the hardcoded activityLogData
+  // Define interface for activity log data
+   interface ActivityLog {
+    id: string;
+    description: string;
+    timestamp?: string; // Make original timestamp optional if not displayed
+    date?: string; // Add formatted date
+    time?: string; // Add formatted time
+  }
+
+  // Initialize with proper type
+  let activityLogData: ActivityLog[] = [];
+  let activityLogError = '';
+
+  // Function to fetch activity logs from backend
+    async function fetchActivityLogs() {
+    try {
+      const token = get(authStore).token;
+      const response = await fetch('http://localhost:8090/api/admin/dashboard/activity-logs/latest', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: ActivityLog[] = await response.json();
+      // Map over the data to format the timestamp
+      activityLogData = data.map(log => {
+        const { formattedDate, formattedTime } = formatTimestamp(log.timestamp || '');
+        return {
+          ...log,
+          date: formattedDate, // Add new properties for formatted date and time
+          time: formattedTime
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching activity logs:', error);
+      activityLogError = 'Failed to load activity logs. Please try again later.';
+    }
+  }
 </script>
 
 <div class="dashboard-content">
@@ -29,106 +201,120 @@
     </div>
   </div>
 
-  <div class="stats-grid">
-    <DashboardCard
-      title="Total Doctors"
-      value="24"
-      subtitle="Active therapists"
-      icon={Users}
-      trend="up"
-      trendValue="+2 this week"
+  <!-- Section 1: KPI Cards -->
+  <div class="kpi-grid">
+    <KPICard
+      title="Active Sessions Now"
+      value="8"
+      icon={Video}
     />
-    <DashboardCard
-      title="Today's Appointments"
-      value="18"
-      subtitle="Scheduled sessions"
+    <KPICard
+      title="Sessions Today"
+      value="74"
       icon={Calendar}
-      trend="neutral"
-      trendValue="3 pending"
     />
-    <DashboardCard
-      title="Active Sessions"
-      value="5"
-      subtitle="Live counseling"
-      icon={Activity}
-      trend="up"
-      trendValue="2 more than yesterday"
+    <KPICard
+      title="Therapists Available"
+      value="12"
+      icon={UserCheck}
     />
-    <DashboardCard
-      title="Completion Rate"
-      value="94.5%"
-      subtitle="Session completion"
-      icon={TrendingUp}
-      trend="up"
-      trendValue="+2.1%"
-    />
-  </div>
-
-  <div class="dashboard-sections">
-    <div class="section">
-      <h2 class="section-title">Recent Activity</h2>
-      <div class="activity-list">
-        <div class="activity-item">
-          <div class="activity-icon">
-            <UserCheck size={16} />
-          </div>
-          <div class="activity-content">
-            <p class="activity-text">Dr. Sarah completed a session with Patient #1024</p>
-            <span class="activity-time">5 minutes ago</span>
-          </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <div class="kpi-info">
+          <h3 class="kpi-title">Avg. Patient Rating (30d)</h3>
         </div>
-        <div class="activity-item">
-          <div class="activity-icon">
-            <Calendar size={16} />
-          </div>
-          <div class="activity-content">
-            <p class="activity-text">New appointment scheduled for tomorrow at 2:00 PM</p>
-            <span class="activity-time">15 minutes ago</span>
-          </div>
-        </div>
-        <div class="activity-item">
-          <div class="activity-icon">
-            <Users size={16} />
-          </div>
-          <div class="activity-content">
-            <p class="activity-text">Dr. Michael joined the platform</p>
-            <span class="activity-time">1 hour ago</span>
-          </div>
-        </div>
-        <div class="activity-item">
-          <div class="activity-icon">
-            <Activity size={16} />
-          </div>
-          <div class="activity-content">
-            <p class="activity-text">Live session started in Room #3</p>
-            <span class="activity-time">2 hours ago</span>
-          </div>
+        <div class="kpi-icon">
+          <Star size={24} />
         </div>
       </div>
-    </div>
-
-    <div class="section">
-      <h2 class="section-title">Quick Actions</h2>
-      <div class="quick-actions">
-        <button class="action-btn primary">
-          <Users size={20} />
-          Add New Doctor
-        </button>
-        <button class="action-btn secondary">
-          <Calendar size={20} />
-          Schedule Session
-        </button>
-        <button class="action-btn secondary">
-          <Activity size={20} />
-          Start Live Session
-        </button>
-        <button class="action-btn secondary">
-          <TrendingUp size={20} />
-          View Reports
-        </button>
+      <div class="kpi-value">
+        <StarRating rating={4.6} />
       </div>
     </div>
   </div>
+
+  <!-- Section 2: Main Charts -->
+  <div class="charts-grid">
+    <PieChart
+      title="Patient Issues Breakdown (Last 30 Days)"
+      data={pieChartData}
+    />
+    <BarChart
+      title="Peak Platform Usage by Hour of Day"
+      data={hourlyUsageData}
+      xAxisLabel="Hour of the Day"
+      yAxisLabel="Number of Sessions"
+      color="#2563eb"
+    />
+  </div>
+
+  <!-- Section 3: Data Feeds and Tables -->
+  <div class="data-grid">
+    <BarChart
+      title="Daily Session Volume (Last 14 Days)"
+      data={dailySessionData}
+      xAxisLabel="Date"
+      yAxisLabel="Total Sessions"
+      color="#059669"
+    />
+    <!-- <DataTable
+      title="Therapist Status Overview"
+      headers={['Name', 'Email', 'Status']}
+      data={therapistData}
+    /> -->
+     <div class="data-table-container"> <!-- Optional: Add a container for styling -->
+          {#if therapistError}
+            <div class="error-message">
+              {therapistError}
+            </div>
+          {:else if therapistData.length === 0}
+            <div class="loading-message">
+              Loading therapist data...
+            </div>
+          {:else}
+            <DataTable
+              title="Therapist Status Overview"
+              headers={['Name', 'Email', 'Status']}
+              data={therapistData}
+            />
+          {/if} 
+     </div>
+  </div>
+
+  <!-- Section 4: Recent Activity Log -->
+  <!-- <div class="activity-section">
+    <DataTable
+      title="Recent Activity Log"
+      headers={['ID', 'Description', 'Timestamp']}
+      data={activityLogData}
+    />
+  </div> -->
+
+  <!-- Section 4: Recent Activity Log -->
+  <div class="activity-section">
+    {#if activityLogError}
+      <div class="error-message">
+        {activityLogError}
+      </div>
+    {:else if activityLogData.length === 0}
+      <div class="loading-message">
+        Loading activity logs...
+      </div>
+    {:else}
+      <DataTable
+        title="Recent Activity Log"
+        headers={['ID', 'Description', 'Date', 'Time']} 
+        data={activityLogData.map(log => ({ // Map data to match new headers
+          id: log.id,
+          description: log.description,
+          date: log.date,
+          time: log.time
+        }))}
+      />
+    {/if}
+  </div>
+
+
 </div>
 
 <style>
@@ -171,119 +357,79 @@
     font-weight: 500;
   }
 
-  .stats-grid {
+  .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 4rem;
   }
 
-  .dashboard-sections {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 2rem;
-  }
-
-  .section {
+  .kpi-card {
     background: white;
     border-radius: 12px;
     padding: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     border: 1px solid #e5e7eb;
+    transition: all 0.2s;
+    height: 100%;
   }
 
-  .section-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: #111827;
-    margin: 0 0 1rem 0;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #e5e7eb;
+  .kpi-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
   }
 
-  .activity-list {
+  .kpi-header {
     display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .activity-item {
-    display: flex;
+    justify-content: space-between;
     align-items: flex-start;
-    gap: 0.75rem;
+    margin-bottom: 1rem;
   }
 
-  .activity-icon {
-    width: 32px;
-    height: 32px;
-    background: #eff6ff;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #2563eb;
-    flex-shrink: 0;
-  }
-
-  .activity-content {
-    flex: 1;
-  }
-
-  .activity-text {
+  .kpi-title {
     font-size: 0.875rem;
-    color: #111827;
-    margin: 0 0 0.25rem 0;
+    font-weight: 600;
+    color: #6b7280;
+    margin: 0;
     line-height: 1.4;
   }
 
-  .activity-time {
-    font-size: 0.75rem;
-    color: #6b7280;
-  }
-
-  .quick-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .action-btn {
+  .kpi-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border-radius: 8px;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.875rem 1rem;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: left;
-  }
-
-  .action-btn.primary {
-    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    justify-content: center;
     color: white;
+    flex-shrink: 0;
   }
 
-  .action-btn.primary:hover {
-    background: linear-gradient(135deg, #1d4ed8, #2563eb);
-    transform: translateY(-1px);
+  .kpi-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #111827;
+    line-height: 1;
   }
 
-  .action-btn.secondary {
-    background: #f9fafb;
-    color: #374151;
-    border: 1px solid #e5e7eb;
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-bottom: 4rem;
   }
 
-  .action-btn.secondary:hover {
-    background: #f3f4f6;
-    border-color: #d1d5db;
+  .data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 4rem;
   }
 
   @media (max-width: 1024px) {
-    .dashboard-sections {
+    .charts-grid,
+    .data-grid {
       grid-template-columns: 1fr;
     }
   }
@@ -298,12 +444,16 @@
       gap: 1rem;
     }
 
-    .stats-grid {
+    .kpi-grid {
       grid-template-columns: 1fr;
     }
 
     .dashboard-title {
       font-size: 1.5rem;
+    }
+
+    .kpi-value {
+      font-size: 2rem;
     }
   }
 </style>
