@@ -23,50 +23,76 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final TherapistRepository therapistRepository;
     
     
+//    @Override
+//    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+//
+////        return adminRepository.findByEmail(email)
+////                .map(admin -> new User(
+////                        admin.getEmail(),
+////                        admin.getPasswordHash(),
+////                        Collections.singletonList(() -> "ROLE_ADMIN")
+////                ))
+////                .orElseThrow(() -> new UsernameNotFoundException("Admin not found with email: " + email));
+//
+//        // First, try to find the user as an Admin
+//        Optional<Admin> adminOptional = adminRepository.findByEmail(email);
+//        if (adminOptional.isPresent()) {
+//            Admin admin = adminOptional.get();
+//            // If found, create a UserDetails object with ROLE_ADMIN
+//            return new User(
+//                    admin.getEmail(),
+//                    admin.getPasswordHash(),
+//                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN"))
+//            );
+//        }
+//
+//        // If not found as an Admin, try to find the user as a Therapist
+//        Optional<Therapist> therapistOptional = therapistRepository.findByEmail(email);
+//        if (therapistOptional.isPresent()) {
+//            Therapist therapist = therapistOptional.get();
+//
+//            // IMPORTANT: Check if the therapist's account is active before allowing login.
+//            if (!therapist.isActive()) {
+//                throw new UsernameNotFoundException("Therapist account is not active for email: " + email);
+//            }
+//
+//            // If found and active, create a UserDetails object with ROLE_THERAPIST
+//            return new User(
+//                    therapist.getEmail(),
+//                    therapist.getPasswordHash(),
+//                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_THERAPIST"))
+//            );
+//        }
+//
+//        // If the user is not found in either repository, throw an exception.
+//        throw new UsernameNotFoundException("User not found with email: " + email);
+//
+//    }
+    
+    
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-    
-//        return adminRepository.findByEmail(email)
-//                .map(admin -> new User(
-//                        admin.getEmail(),
-//                        admin.getPasswordHash(),
-//                        Collections.singletonList(() -> "ROLE_ADMIN")
-//                ))
-//                .orElseThrow(() -> new UsernameNotFoundException("Admin not found with email: " + email));
-    
-        // First, try to find the user as an Admin
-        Optional<Admin> adminOptional = adminRepository.findByEmail(email);
-        if (adminOptional.isPresent()) {
-            Admin admin = adminOptional.get();
-            // If found, create a UserDetails object with ROLE_ADMIN
-            return new User(
-                    admin.getEmail(),
-                    admin.getPasswordHash(),
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN"))
-            );
-        }
-    
-        // If not found as an Admin, try to find the user as a Therapist
-        Optional<Therapist> therapistOptional = therapistRepository.findByEmail(email);
-        if (therapistOptional.isPresent()) {
-            Therapist therapist = therapistOptional.get();
-        
-            // IMPORTANT: Check if the therapist's account is active before allowing login.
-            if (!therapist.isActive()) {
-                throw new UsernameNotFoundException("Therapist account is not active for email: " + email);
-            }
-        
-            // If found and active, create a UserDetails object with ROLE_THERAPIST
-            return new User(
-                    therapist.getEmail(),
-                    therapist.getPasswordHash(),
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_THERAPIST"))
-            );
-        }
-    
-        // If the user is not found in either repository, throw an exception.
-        throw new UsernameNotFoundException("User not found with email: " + email);
-    
+        // Try to find an Admin first
+        return adminRepository.findByEmail(email)
+                .map(admin -> new User(
+                        admin.getEmail(),
+                        admin.getPasswordHash(),
+                        Collections.singletonList(() -> "ROLE_ADMIN") // Grant ADMIN role
+                ))
+                // If not found, try to find a Therapist
+                .orElseGet(() -> therapistRepository.findByEmail(email)
+                        .map(therapist -> {
+                            // Only active therapists can log in
+                            if (!therapist.isActive()) {
+                                throw new UsernameNotFoundException("Therapist account is not active: " + email);
+                            }
+                            return new User(
+                                    therapist.getEmail(),
+                                    therapist.getPasswordHash(),
+                                    Collections.singletonList(() -> "ROLE_THERAPIST") // Grant THERAPIST role
+                            );
+                        })
+                        .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email)));
     }
     
     
