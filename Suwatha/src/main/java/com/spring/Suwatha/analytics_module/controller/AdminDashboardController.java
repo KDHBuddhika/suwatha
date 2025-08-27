@@ -1,6 +1,8 @@
 package com.spring.Suwatha.analytics_module.controller;
 
 
+import com.spring.Suwatha.analytics_module.dto.StatisticsDto;
+import com.spring.Suwatha.analytics_module.service.StatisticsService;
 import com.spring.Suwatha.session_module.entity.ActivityLog;
 import com.spring.Suwatha.session_module.service.ActivityLogService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -20,9 +22,11 @@ import java.util.List;
 public class AdminDashboardController {
     
     private final ActivityLogService activityLogService;
+    private final StatisticsService statisticsService;
     
-    public AdminDashboardController(ActivityLogService activityLogService) {
+    public AdminDashboardController(ActivityLogService activityLogService, StatisticsService statisticsService) {
         this.activityLogService = activityLogService;
+        this.statisticsService = statisticsService;
     }
     
 
@@ -46,6 +50,13 @@ public class AdminDashboardController {
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<ActivityLog> activitiesForDate = activityLogService.getLogsForDate(date);
         return ResponseEntity.ok(activitiesForDate);
+    }
+    
+    
+    @GetMapping("/statistics")
+    public ResponseEntity<StatisticsDto> getDashboardStatistics() {
+        StatisticsDto stats = statisticsService.getDashboardStatistics();
+        return ResponseEntity.ok(stats);
     }
     
 }

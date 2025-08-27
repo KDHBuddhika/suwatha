@@ -70,9 +70,16 @@ public class SessionService {
                 savedPatient.getAnonymousHandle()
         );
         activityLogService.logActivity(logMessage);
+    
+        String sessionUrl;
+        if(requestDto.getCommunicationType() == CommunicationType.CHAT){
+            sessionUrl = "https://your-app-domain.com/session/chat/" + savedSession.getId();
+        }else{
+            sessionUrl = "https://your-app-domain.com/session/video/" + savedSession.getId();
+        }
         
         // 6. Send notifications
-        String sessionUrl = "https://your-app-domain.com/session/" + savedSession.getId();
+        
         sendNotifications(therapist, savedPatient, sessionUrl,savedSession.getCommunicationType());
         
         // 7. Return the session details to the patient frontend
