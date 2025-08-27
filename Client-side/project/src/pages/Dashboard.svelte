@@ -40,6 +40,8 @@
 
      fetchTherapists(); 
 
+     fetchDashboardStats();
+
     return () => clearInterval(timer);
   });
 
@@ -71,6 +73,43 @@
     };
   });
 
+  interface DashboardStats {
+    activeSessions: number;
+    totalSessions: number;
+    finishedSessions: number;
+    sessionsToday: number;
+    therapistsAvailable: number;
+    totalTherapists: number;
+    busyTherapists: number;
+    offlineTherapists: number;
+    averageSessionRating: number;
+  }
+
+  let dashboardStats: DashboardStats | null = null;
+  let statsError = '';
+
+   async function fetchDashboardStats() {
+    try {
+      const token = get(authStore).token;
+      const response = await fetch('http://localhost:8090/api/admin/dashboard/statistics', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      dashboardStats = await response.json();
+
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      statsError = 'Failed to load key statistics.';
+    }
+  }
   // const therapistData = [
   //   { name: 'Dr. Sarah Johnson', email: 'sarah.johnson@suwatha.com', status: 'Available' },
   //   { name: 'Dr. Michael Chen', email: 'michael.chen@suwatha.com', status: 'Busy' },
@@ -201,8 +240,11 @@
     </div>
   </div>
 
+
+
+<!-- --------------------------------------------------------------------------------------------------------------------------------------------- -->
   <!-- Section 1: KPI Cards -->
-  <div class="kpi-grid">
+  <!-- <div class="kpi-grid">
     <KPICard
       title="Active Sessions Now"
       value="8"
@@ -231,7 +273,106 @@
         <StarRating rating={4.6} />
       </div>
     </div>
+  </div> -->
+
+  <div class="kpi-grid">
+        {#if statsError}
+          <div class="error-message">{statsError}</div>
+        {:else if dashboardStats}
+          <!-- Card 1: Active Sessions -->
+          <KPICard
+            title="Active Sessions Now"
+            value={dashboardStats.activeSessions.toString()}
+            icon={Video}
+          />
+          
+          <!-- Card 2: Sessions Today -->
+          <KPICard
+            title="Sessions Today"
+            value={dashboardStats.sessionsToday.toString()}
+            icon={Calendar}
+          />
+          
+          <!-- Card 3: Therapists Available -->
+          <KPICard
+            title="Therapists Available"
+            value={dashboardStats.therapistsAvailable.toString()}
+            icon={UserCheck}
+          />
+
+          
+          
+          <!-- Card 4: Average Rating -->
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <div class="kpi-info">
+                <h3 class="kpi-title">Avg. Patient Rating (30d)</h3>
+              </div>
+              <div class="kpi-icon">
+                <Star size={24} />
+              </div>
+            </div>
+            <div class="kpi-value">
+              <StarRating rating={dashboardStats.averageSessionRating} />
+            </div>
+      </div>
+    {:else}
+      <!-- Loading State: Show placeholder text while fetching -->
+      <KPICard title="Active Sessions Now" value="..." icon={Video} />
+      <KPICard title="Sessions Today" value="..." icon={Calendar} />
+      <KPICard title="Therapists Available" value="..." icon={UserCheck} />
+      <KPICard title="Avg. Patient Rating" value="..." icon={Star} />
+    {/if}
+
   </div>
+
+  <div class="kpi-grid">
+      {#if statsError}
+        <div class="error-message">{statsError}</div>
+      {:else if dashboardStats}
+        <!-- Card 1: Active Sessions -->
+        <KPICard
+          title="Finished Sessions"
+          value={dashboardStats.finishedSessions.toString()}
+          icon={Video}
+        />
+        
+        <!-- Card 2: Sessions Today -->
+        <KPICard
+          title="Busy Therapist | Offline Therapist"
+          value={dashboardStats.busyTherapists.toString() +"   |   " + dashboardStats.offlineTherapists.toString()}
+          icon={Calendar}
+        />
+        
+        <!-- Card 3: Therapists Available -->
+        <KPICard
+          title="Total Therapist"
+          value={dashboardStats.totalTherapists.toString()}
+          icon={UserCheck}
+        />
+
+         <!-- Card 3: Therapists Available -->
+        <KPICard
+          title="Total Session"
+          value={dashboardStats.totalSessions.toString()}
+          icon={Video}
+        />
+
+  {:else}
+    <!-- Loading State: Show placeholder text while fetching -->
+    <KPICard title="Active Sessions Now" value="..." icon={Video} />
+    <KPICard title="Sessions Today" value="..." icon={Calendar} />
+    <KPICard title="Therapists Available" value="..." icon={UserCheck} />
+    <KPICard title="Avg. Patient Rating" value="..." icon={Star} />
+  {/if}
+</div>
+
+
+<!-- --------------------------------------------------------------------------------------------------------------------------------------------- -->
+
+
+
+
 
   <!-- Section 2: Main Charts -->
   <div class="charts-grid">
@@ -247,6 +388,9 @@
       color="#2563eb"
     />
   </div>
+
+
+<!-- --------------------------------------------------------------------------------------------------------------------------------------------- -->
 
   <!-- Section 3: Data Feeds and Tables -->
   <div class="data-grid">
@@ -281,6 +425,8 @@
      </div>
   </div>
 
+
+<!-- --------------------------------------------------------------------------------------------------------------------------------------------- -->
   <!-- Section 4: Recent Activity Log -->
   <!-- <div class="activity-section">
     <DataTable
@@ -313,7 +459,7 @@
       />
     {/if}
   </div>
-
+<!-- --------------------------------------------------------------------------------------------------------------------------------------------- -->
 
 </div>
 
