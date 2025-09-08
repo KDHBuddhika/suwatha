@@ -8,11 +8,14 @@ import com.spring.Suwatha.session_module.entity.SessionSummary;
 import com.spring.Suwatha.session_module.repo.SessionRepository;
 import com.spring.Suwatha.session_module.repo.SessionSummaryRepository;
 import com.spring.Suwatha.shared.exception.AccessDeniedException;
+import com.spring.Suwatha.shared.exception.IllegalStateException;
 import com.spring.Suwatha.shared.exception.ResourceNotFoundException;
 import com.spring.Suwatha.user_module.entity.Therapist;
 import jakarta.transaction.Transactional;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+
+import java.time.Duration;
 
 @Service
 public class SummaryService {
@@ -46,12 +49,25 @@ public class SummaryService {
             throw new IllegalStateException("A summary for this session has already been submitted.");
         }
         
+        if(session.getStartTime() == null || session.getEndTime() == null){
+            throw new IllegalStateException("Cannot calculate duration for session " + sessionId + " because start or end time is missing.");
+        }
+    
+        Duration duration = Duration.between(session.getStartTime(),session.getEndTime());
+        
+        long durationInMinutes = (long)Math.ceil(duration.getSeconds() / 60.0);
+        
+        
         // Create and save the summary
         SessionSummary summary = new SessionSummary();
         summary.setSession(session);
         summary.setIdentifiedIllness(dto.getIdentifiedIllness());
         summary.setTherapistPrivateNotes(dto.getTherapistPrivateNotes());
         summary.setCity(dto.getCity());
+        summary.setAge(dto.getAge());
+        summary.setGender(dto.getGender());
+        summary.setDurationInMinutes((int)durationInMinutes);
+        summary.setRiskAssessment(dto.getRiskAssessment());
         
         summaryRepository.save(summary);
     }

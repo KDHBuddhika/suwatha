@@ -32,6 +32,9 @@ public class Session {
     @Column(nullable = false)
     private CommunicationType communicationType;
     
+    @OneToOne(mappedBy = "session", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private SessionFeedback sessionFeedback;
+    
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SessionStatus status = SessionStatus.PENDING;

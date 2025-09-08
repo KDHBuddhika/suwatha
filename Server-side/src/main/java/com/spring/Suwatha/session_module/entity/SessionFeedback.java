@@ -30,7 +30,7 @@ public class SessionFeedback {
     @Column(nullable = false)
     @Min(1)
     @Max(5)
-    private int rating;
+    private Integer rating;
     
     @Lob
     @Column(columnDefinition = "TEXT")
