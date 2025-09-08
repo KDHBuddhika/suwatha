@@ -21,6 +21,7 @@
   "dependencies": {
     "chart.js": "^4.5.0",
     "chartjs-adapter-date-fns": "^3.0.0",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "date-fns": "^4.1.0",
     "lucide-svelte": "^0.537.0",
     "svelte-spa-router": "^4.0.1"

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { User, Calendar, BarChart3, Settings, LogOut, Home } from 'lucide-svelte';
+  import { User, Calendar, BarChart3, Settings, LogOut, Home ,Monitor,FileText} from 'lucide-svelte';
   import { authStore } from '../stores/auth';
   import { link } from 'svelte-spa-router';
  
@@ -10,6 +10,8 @@
   const menuItems = [
     { path: '/dashboard', label: 'Overview', icon: Home },
     { path: '/doctors', label: 'Manage Doctors', icon: User },
+    { path: '/sessions', label: 'Session Management', icon: Monitor },
+    { path: '/reports', label: 'Session Reports', icon: FileText },
     { path: '/appointments', label: 'Appointments', icon: Calendar },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/settings', label: 'Settings', icon: Settings }

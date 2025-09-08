@@ -42,37 +42,182 @@
 
      fetchDashboardStats();
 
+    fetchIllnessDistribution();
+
+    fetchPeakUsageHourly();
+
+     fetchDailySessionVolume();
+
     return () => clearInterval(timer);
   });
 
+
+// ----------------------------------------------------------------------------------------------------------------------------
   $: user = $authStore.user;
 
   // Sample data for charts
-  const pieChartData = [
-    { label: 'Anxiety', value: 45, color: '#2563eb' },
-    { label: 'Depression', value: 30, color: '#7c3aed' },
-    { label: 'Trauma', value: 15, color: '#dc2626' },
-    { label: 'Other', value: 10, color: '#059669' }
-  ];
+  // const pieChartData = [
+  //   { label: 'Anxiety', value: 45, color: '#2563eb' },
+  //   { label: 'Depression', value: 30, color: '#7c3aed' },
+  //   { label: 'Trauma', value: 15, color: '#dc2626' },
+  //   { label: 'Other', value: 10, color: '#059669' }
+  // ];
 
-  const hourlyUsageData = Array.from({ length: 24 }, (_, i) => {
-    let sessions = 5; // Base sessions
-    if (i >= 14 && i <= 17) sessions += Math.floor(Math.random() * 15) + 10; // Afternoon peak
-    if (i >= 19 && i <= 22) sessions += Math.floor(Math.random() * 12) + 8; // Evening peak
-    if (i >= 1 && i <= 6) sessions = Math.floor(Math.random() * 3) + 1; // Low early morning
-    return { label: `${i}:00`, value: sessions };
-  });
+  // Interface for Pie Chart data items
+  interface PieChartDataItem {
+    label: string;
+    value: number;
+    color: string;
+  }
 
-  const dailySessionData = Array.from({ length: 14 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (13 - i));
-    const sessions = Math.floor(Math.random() * 30) + 40;
-    return { 
-      label: date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }), 
-      value: sessions 
-    };
-  });
+    // === ADD THE NEW REACTIVE VARIABLES ===
+  let pieChartData: PieChartDataItem[] = [];
+  let pieChartError = '';
 
+   async function fetchIllnessDistribution() {
+    try {
+      const token = get(authStore).token;
+      const response = await fetch('http://localhost:8090/api/admin/dashboard/charts/illness-distribution', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      pieChartData = await response.json();
+
+    } catch (error) {
+      console.error('Error fetching illness distribution data:', error);
+      pieChartError = 'Failed to load patient issues data.';
+    }
+  }
+
+
+  // ------------------------------------------------------------------------------------------------------------------------------------------
+
+    interface ChartDataItem {
+    label: string;
+    value: number;
+    color?: string;
+  }
+
+  // --- State Variables ---
+  let hourlyUsageData: ChartDataItem[] = [];        // Data the chart is bound to
+  let backendHourlyUsageData: ChartDataItem[] = []; // Stores the API response
+  let hourlyUsageError = '';
+  let showRealHourlyData = true;                    // The state for our toggle switch
+
+  // --- Demo Data Generator ---
+  // This function's only job is to create sample data.
+  function generateDemoHourlyData(): ChartDataItem[] {
+    return Array.from({ length: 24 }, (_, i) => {
+      let sessions = 5; // Base sessions
+      if (i >= 14 && i <= 17) sessions += Math.floor(Math.random() * 15) + 10;
+      if (i >= 19 && i <= 22) sessions += Math.floor(Math.random() * 12) + 8;
+      if (i >= 1 && i <= 6) sessions = Math.floor(Math.random() * 3) + 1;
+      return { label: `${i}:00`, value: sessions };
+    });
+  }
+
+  // --- Data Fetching Function ---
+  // This function's ONLY job is to fetch data from the backend
+  // and store it. It does NOT decide what the chart shows.
+  async function fetchPeakUsageHourly() {
+    try {
+      const token = get(authStore).token;
+      const response = await fetch('http://localhost:8090/api/admin/dashboard/charts/peak-usage-hourly', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      backendHourlyUsageData = await response.json();
+
+    } catch (error) {
+      console.error('Error fetching peak usage data:', error);
+      hourlyUsageError = 'Failed to load peak usage data.';
+    }
+  }
+
+  // --- Reactive Logic Block ---
+  // This block's ONLY job is to watch for changes (to the toggle or the data)
+  // and decide what data the chart should display. This is the "brain" of the feature.
+  $: {
+    // You can open your browser's console (F12) to see this message when you toggle!
+    console.log(`Toggle changed! Show real data is now: ${showRealHourlyData}`);
+
+    if (showRealHourlyData) {
+      // If the toggle is ON, use the data from the backend.
+      hourlyUsageData = backendHourlyUsageData;
+    } else {
+      // If the toggle is OFF, generate and use fresh demo data.
+      hourlyUsageData = generateDemoHourlyData();
+    }
+  }
+
+  // -----------------------------------------------------------------------------------------------------------------------------------------
+
+    // --- State Variables ---
+  let dailySessionData: ChartDataItem[] = [];        // Data the chart is bound to
+  let backendDailySessionData: ChartDataItem[] = []; // Stores the API response
+  let dailySessionError = '';
+  let showRealDailyData = true;                     // The state for our toggle switch
+
+// --- Demo Data Generator ---
+  // This is your original logic, now inside a reusable function.
+  function generateDemoDailyData(): ChartDataItem[] {
+    return Array.from({ length: 14 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (13 - i));
+      const sessions = Math.floor(Math.random() * 30) + 40; // Generates higher, more varied numbers for demo
+      return { 
+        label: date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }), 
+        value: sessions 
+      };
+    });
+  }
+
+  // --- Data Fetching Function ---
+  async function fetchDailySessionVolume() {
+    try {
+      const token = get(authStore).token;
+      const response = await fetch('http://localhost:8090/api/admin/dashboard/charts/daily-session-volume', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      backendDailySessionData = await response.json();
+
+    } catch (error) {
+      console.error('Error fetching daily session volume:', error);
+      dailySessionError = 'Failed to load daily session data.';
+    }
+  }
+
+  // --- Reactive Logic Block ---
+  // This block watches for changes and decides what data the chart should display.
+  $: {
+    if (showRealDailyData) {
+      dailySessionData = backendDailySessionData;
+    } else {
+      dailySessionData = generateDemoDailyData();
+    }
+  }
+
+
+  //----------------------------------------------------------------------------------------------------------------------------------------------
   interface DashboardStats {
     activeSessions: number;
     totalSessions: number;
@@ -110,6 +255,10 @@
       statsError = 'Failed to load key statistics.';
     }
   }
+
+  //----------------------------------------------------------------------------------------------------------------------------------------------
+
+
   // const therapistData = [
   //   { name: 'Dr. Sarah Johnson', email: 'sarah.johnson@suwatha.com', status: 'Available' },
   //   { name: 'Dr. Michael Chen', email: 'michael.chen@suwatha.com', status: 'Busy' },
@@ -171,6 +320,10 @@
     }
   }
 
+
+  // -----------------------------------------------------------------------------------------------------------------------------------------------
+
+
   // const activityLogData = [
   //   { id: 'ACT-001', description: 'Dr. Sarah Johnson started a new session with Patient #1247', timestamp: '2025-01-27 13:45:23' },
   //   { id: 'ACT-002', description: 'New therapist Dr. Michael Chen registered to the platform', timestamp: '2025-01-27 13:32:15' },
@@ -226,6 +379,7 @@
       activityLogError = 'Failed to load activity logs. Please try again later.';
     }
   }
+  // ---------------------------------------------------------------------------------------------------------------------------------------------
 </script>
 
 <div class="dashboard-content">
@@ -293,29 +447,22 @@
             icon={Calendar}
           />
           
-          <!-- Card 3: Therapists Available -->
-          <KPICard
-            title="Therapists Available"
-            value={dashboardStats.therapistsAvailable.toString()}
-            icon={UserCheck}
-          />
-
+       
+           <!-- Card 3: Active Sessions -->
+        <KPICard
+          title="Finished Sessions"
+          value={dashboardStats.finishedSessions.toString()}
+          icon={Video}
+        />
           
+          <!-- Card 4: Total session -->
+        <KPICard
+          title="Total Session"
+          value={dashboardStats.totalSessions.toString()}
+          icon={Video}
+        />
           
-          <!-- Card 4: Average Rating -->
-          <div class="kpi-card">
-            <div class="kpi-header">
-              <div class="kpi-info">
-                <h3 class="kpi-title">Avg. Patient Rating (30d)</h3>
-              </div>
-              <div class="kpi-icon">
-                <Star size={24} />
-              </div>
-            </div>
-            <div class="kpi-value">
-              <StarRating rating={dashboardStats.averageSessionRating} />
-            </div>
-      </div>
+       
     {:else}
       <!-- Loading State: Show placeholder text while fetching -->
       <KPICard title="Active Sessions Now" value="..." icon={Video} />
@@ -330,12 +477,14 @@
       {#if statsError}
         <div class="error-message">{statsError}</div>
       {:else if dashboardStats}
-        <!-- Card 1: Active Sessions -->
-        <KPICard
-          title="Finished Sessions"
-          value={dashboardStats.finishedSessions.toString()}
-          icon={Video}
-        />
+      
+
+           <!-- Card 1: Therapists Available -->
+          <KPICard
+            title="Therapists Available"
+            value={dashboardStats.therapistsAvailable.toString()}
+            icon={UserCheck}
+          />
         
         <!-- Card 2: Sessions Today -->
         <KPICard
@@ -351,12 +500,21 @@
           icon={UserCheck}
         />
 
-         <!-- Card 3: Therapists Available -->
-        <KPICard
-          title="Total Session"
-          value={dashboardStats.totalSessions.toString()}
-          icon={Video}
-        />
+      
+           <!-- Card 4: Average Rating -->
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <div class="kpi-info">
+                <h3 class="kpi-title">Avg. Patient Rating (30d)</h3>
+              </div>
+              <div class="kpi-icon">
+                <Star size={24} />
+              </div>
+            </div>
+            <div class="kpi-value">
+              <StarRating rating={dashboardStats.averageSessionRating} />
+            </div>
+      </div>
 
   {:else}
     <!-- Loading State: Show placeholder text while fetching -->
@@ -374,33 +532,90 @@
 
 
 
-  <!-- Section 2: Main Charts -->
-  <div class="charts-grid">
-    <PieChart
-      title="Patient Issues Breakdown (Last 30 Days)"
-      data={pieChartData}
-    />
-    <BarChart
-      title="Peak Platform Usage by Hour of Day"
-      data={hourlyUsageData}
-      xAxisLabel="Hour of the Day"
-      yAxisLabel="Number of Sessions"
-      color="#2563eb"
-    />
+ <!-- Section 2: Main Charts -->
+<div class="charts-grid">
+  <div class="chart-container"> <!-- Optional: Add a container for styling -->
+    {#if pieChartError}
+      <div class="error-message">
+        {pieChartError}
+      </div>
+    {:else if pieChartData.length === 0}
+      <div class="loading-message">
+        Loading patient issues data...
+      </div>
+    {:else}
+      <PieChart
+        title="Patient Issues Breakdown (Last 30 Days)"
+        data={pieChartData}
+      />
+    {/if}
   </div>
+
+  <!-- NEW CONTAINER FOR THE BAR CHART -->
+  <div class="chart-container">
+    <div class="chart-header">
+      <h3 class="chart-title">Peak Platform Usage by Hour of Day</h3>
+      <div class="toggle-container">
+        <span>Demo</span>
+        <label class="switch">
+          <input type="checkbox" bind:checked={showRealHourlyData}>
+          <span class="slider"></span>
+        </label>
+        <span>Real</span>
+      </div>
+    </div>
+
+    {#if hourlyUsageError}
+      <div class="error-message">{hourlyUsageError}</div>
+    {:else if hourlyUsageData.length === 0}
+      <div class="loading-message">Loading usage data...</div>
+    {:else}
+      <BarChart
+        data={hourlyUsageData}
+        xAxisLabel="Hour of the Day"
+        yAxisLabel="Number of Sessions"
+        color="#2563eb"
+      />
+    {/if}
+  </div>
+</div>
 
 
 <!-- --------------------------------------------------------------------------------------------------------------------------------------------- -->
 
   <!-- Section 3: Data Feeds and Tables -->
   <div class="data-grid">
-    <BarChart
-      title="Daily Session Volume (Last 14 Days)"
-      data={dailySessionData}
-      xAxisLabel="Date"
-      yAxisLabel="Total Sessions"
-      color="#059669"
-    />
+
+
+     <!-- Daily Session Volume Chart Container -->
+    <div class="chart-container">
+      <div class="chart-header">
+        <h3 class="chart-title">Daily Session Volume (Last 14 Days)</h3>
+        <div class="toggle-container">
+          <span>Demo</span>
+          <label class="switch">
+            <input type="checkbox" bind:checked={showRealDailyData}>
+            <span class="slider"></span>
+          </label>
+          <span>Real</span>
+        </div>
+      </div>
+
+      {#if dailySessionError}
+        <div class="error-message">{dailySessionError}</div>
+      {:else if dailySessionData.length === 0}
+        <div class="loading-message">Loading daily session data...</div>
+      {:else}
+        <BarChart
+          data={dailySessionData}
+          xAxisLabel="Date"
+          yAxisLabel="Total Sessions"
+          color="#059669"
+        />
+      {/if}
+    </div>
+
+    
     <!-- <DataTable
       title="Therapist Status Overview"
       headers={['Name', 'Email', 'Status']}
@@ -466,7 +681,7 @@
 <style>
   .dashboard-content {
     padding: 2rem;
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
     margin-left: 280px;
   }
@@ -571,6 +786,64 @@
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
     margin-bottom: 4rem;
+  }
+
+
+                                                        /* chart hourly usage toggle */
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #64748b;
+  }
+
+  /* Simple CSS for a basic toggle switch */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 20px;
+  }
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 20px;
+  }
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+  input:checked + .slider {
+    background-color: #2563eb;
+  }
+  input:checked + .slider:before {
+    transform: translateX(14px);
   }
 
   @media (max-width: 1024px) {
