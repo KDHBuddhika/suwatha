@@ -63,7 +63,7 @@ public class DoctorController {
     
     
     @PutMapping("/update-therapists/password/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','THERAPIST')")
     public ResponseEntity<String> changeTherapistPassword(
             @PathVariable Long id,
             @Valid @RequestBody PasswordChangeDto passwordChangeDto) {

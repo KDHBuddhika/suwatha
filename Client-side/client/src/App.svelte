@@ -1,83 +1,63 @@
 <script lang="ts">
-  import router, { link, push, replace } from 'svelte-spa-router';
-  import { authStore } from './stores/auth';
-  import Sidebar from './components/Sidebar.svelte';
   import { onMount } from 'svelte';
-
-  // Pages
-  import Login from './pages/Login.svelte';
-  import Dashboard from './pages/Dashboard.svelte';
-  import NotFound from './pages/NotFound.svelte';
-  import DoctorManagement from './pages/DoctorManagement.svelte';
-  import AddTherapist from './pages/AddTherapist.svelte';
-  import ViewDoctor from './pages/ViewDoctor.svelte';
-  import EditDoctor from './pages/EditDoctor.svelte';
-  import SessionManagement from './pages/SessionManagement.svelte';
-  import SessionReports from './pages/SessionReports.svelte';
-  let currentPath = '';
+  import router from 'svelte-spa-router';
+  import { authStore, authActions } from './stores/auth';
   
-  // Initialize auth store when app loads
-  onMount(() => {
-    authStore.initialize();
-  });
+  import LoadingScreen from './components/LoadingScreen.svelte';
+  import MainLayout from './layouts/MainLayout.svelte';
+  import DoctorDashboard from './doctor-dashboard/DoctorDashboard.svelte';
+  import LiveVideoSession from './doctor-dashboard/pages/LiveVideoSession.svelte';
 
-  // Simple route configuration without guards
+
+  
+  import Home from './pages/Home.svelte';
+  import About from './pages/About.svelte';
+  import Terms from './pages/Terms.svelte';
+  import Feedback from './pages/Feedback.svelte';
+  import Privacy from './pages/Privacy.svelte';
+  import DoctorLogin from './pages/DoctorLogin.svelte';
+  import Video from './pages/Video.svelte';
+  import Chat from './pages/Chat.svelte';
+  import SpecialSupport from './pages/SpecialSupport.svelte';
+  // import VideoConsultation from './pages/VideoConsultation.svelte';
+  
+  let isLoading = true;
+  
+  // Define routes
   const routes = {
-    '/': Login,
-    '/login': Login,
-    '/dashboard': Dashboard,
-    '/appointments': Dashboard, // Placeholder for now
-    '/doctors': DoctorManagement,
-    '/doctors/add': AddTherapist,
-    '/doctors/view/:id': ViewDoctor,
-    '/doctors/edit/:id': EditDoctor,
-    '/analytics': Dashboard, // Placeholder for now
-    '/settings': Dashboard, // Placeholder for now
-    '/sessions': SessionManagement,
-    '/reports': SessionReports,
-    '*': NotFound
+    '/': Home,
+    '/about': About,
+    '/terms': Terms,
+    '/feedback': Feedback,
+    '/privacy': Privacy,
+    '/doctor-login': DoctorLogin,
+    '/video': Video,
+    '/chat': Chat,
+    '/special-support': SpecialSupport,
+    // '/video-consultation': VideoConsultation,
+    '/doctor-dashboard': DoctorDashboard,
+    '/live-video-session': LiveVideoSession
     
   };
-
-  // Handle route changes with guards
-  function handleRouteLoaded(event: any) {
-    currentPath = event.detail.location;
+  
+  onMount(() => {
+    setTimeout(() => {
+      isLoading = false;
+    }, 10500);
     
-    // Apply route guards after route loads
-    const protectedRoutes = ['/dashboard', '/doctors', '/appointments', '/analytics', '/settings', '/doctors/add', '/doctors/view/:id', '/doctors/edit/:id', '/sessions', '/reports'];
-    const publicRoutes = ['/', '/login'];
-    
-    if (protectedRoutes.includes(currentPath) && !$authStore.isAuthenticated) {
-      setTimeout(() => replace('/login'), 0);
-    } else if (publicRoutes.includes(currentPath) && $authStore.isAuthenticated) {
-      setTimeout(() => replace('/dashboard'), 0);
-    }
-  }
-
-  // Watch for authentication changes
-  $: {
-    if (typeof window !== 'undefined' && currentPath) {
-      const protectedRoutes = ['/dashboard', '/doctors', '/appointments', '/analytics', '/settings', '/doctors/add', '/doctors/view/:id', '/doctors/edit/:id', '/sessions', '/reports'];
-      const publicRoutes = ['/', '/login'];
-      
-      if (protectedRoutes.includes(currentPath) && !$authStore.isAuthenticated) {
-        setTimeout(() => replace('/login'), 0);
-      } else if (publicRoutes.includes(currentPath) && $authStore.isAuthenticated) {
-        setTimeout(() => replace('/dashboard'), 0);
-      }
-    }
-  }
+    // Check for existing authentication
+    authActions.checkAuth();
+  });
 </script>
 
-<main class="app">
-  {#if $authStore.isAuthenticated}
-    <div class="app-layout">
-      <Sidebar {currentPath} />
-      <div class="main-content">
-        <svelte:component this={router} {routes} on:routeLoaded={handleRouteLoaded} />
-      </div>
-    </div>
+<LoadingScreen bind:isLoading />
+
+{#if !isLoading}
+  {#if $authStore.isAuthenticated && window.location.pathname === '/doctor-dashboard'}
+    <DoctorDashboard />
   {:else}
-    <svelte:component this={router} {routes} on:routeLoaded={handleRouteLoaded} />
+    <MainLayout>
+      <svelte:component this={router} {routes} />
+    </MainLayout>
   {/if}
-</main>
+{/if}

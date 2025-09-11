@@ -1,6 +1,8 @@
 package com.spring.Suwatha.analytics_module.controller;
 
 
+import com.spring.Suwatha.analytics_module.dto.BarChartDataDto;
+import com.spring.Suwatha.analytics_module.dto.PieChartSliceDto;
 import com.spring.Suwatha.analytics_module.dto.StatisticsDto;
 import com.spring.Suwatha.analytics_module.service.StatisticsService;
 import com.spring.Suwatha.session_module.entity.ActivityLog;
@@ -37,14 +39,7 @@ public class AdminDashboardController {
         return ResponseEntity.ok(recentActivities);
     }
     
-    /**
-     * Endpoint to get all activity logs for a specific day.
-     * The date must be in ISO format (YYYY-MM-DD).
-     * Usage: GET /api/admin/dashboard/activity-logs/by-date?date=2025-08-15
-     *
-     * @param date The specific date to query.
-     * @return A list of activity logs for that day.
-     */
+
     @GetMapping("/activity-logs/by-date")
     public ResponseEntity<List<ActivityLog>> getActivityByDate(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -57,6 +52,24 @@ public class AdminDashboardController {
     public ResponseEntity<StatisticsDto> getDashboardStatistics() {
         StatisticsDto stats = statisticsService.getDashboardStatistics();
         return ResponseEntity.ok(stats);
+    }
+    
+    @GetMapping("/charts/illness-distribution")
+    public ResponseEntity<List<PieChartSliceDto>> getIllnessDistributionChart(){
+        List<PieChartSliceDto> chartData = statisticsService.getIllnessDistributionPieChart();
+        return ResponseEntity.ok(chartData);
+    }
+    
+    @GetMapping("/charts/peak-usage-hourly")
+    public ResponseEntity<List<BarChartDataDto>> getPeakUsageHourlyChart() {
+        List<BarChartDataDto> chartData = statisticsService.getPeakUsageHourlyBarChart();
+        return ResponseEntity.ok(chartData);
+    }
+    
+    @GetMapping("/charts/daily-session-volume")
+    public ResponseEntity<List<BarChartDataDto>> getDailySessionVolumeChart() {
+        List<BarChartDataDto> chartData = statisticsService.getDailySessionVolumeBarChart();
+        return ResponseEntity.ok(chartData);
     }
     
 }

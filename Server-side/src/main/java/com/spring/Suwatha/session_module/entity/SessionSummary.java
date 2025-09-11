@@ -1,5 +1,7 @@
 package com.spring.Suwatha.session_module.entity;
 
+import com.spring.Suwatha.session_module.dto.Gender;
+import com.spring.Suwatha.session_module.dto.RiskAssessment;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,6 +33,21 @@ public class SessionSummary {
     
     @Column(nullable = true)
     private String city;
+    
+    @Column
+    private Integer age; // Use Integer object to allow null
+    
+    @Enumerated(EnumType.STRING)
+    @Column
+    private Gender gender; // Enum for gender
+    
+    @Column(nullable = false)
+    private Integer durationInMinutes;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RiskAssessment riskAssessment;
+    
     
     @Lob
     private String therapistPrivateNotes;

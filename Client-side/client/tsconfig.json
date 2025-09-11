@@ -14,7 +14,20 @@
     "allowJs": true,
     "checkJs": true,
     "isolatedModules": true,
-    "moduleDetection": "force"
+    "moduleDetection": "force",
+
+  
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true,
+    "strict": true,
+
+
+        /* --- KEY FIXES FOR YOUR ERROR --- */
+    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "skipLibCheck": true 
+    /* ---------------------------------- */
   },
   "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte"],
   "references": [{ "path": "./tsconfig.node.json" }]
