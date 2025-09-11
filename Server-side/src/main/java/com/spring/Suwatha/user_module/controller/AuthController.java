@@ -5,6 +5,9 @@ import com.spring.Suwatha.shared.security.JwtUtil;
 import com.spring.Suwatha.user_module.dto.AdminCreateDto;
 import com.spring.Suwatha.user_module.dto.AuthRequestDto;
 import com.spring.Suwatha.user_module.dto.AuthResponse;
+import com.spring.Suwatha.user_module.dto.DoctorAuthResponse;
+import com.spring.Suwatha.user_module.entity.Therapist;
+import com.spring.Suwatha.user_module.repository.TherapistRepository;
 import com.spring.Suwatha.user_module.service.AdminService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -15,6 +18,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
 
 
 @AllArgsConstructor
@@ -27,7 +32,7 @@ public class AuthController {
     private final UserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
     private final AdminService adminService;
-    
+    private final TherapistRepository therapistRepository;
    
     
     
@@ -49,7 +54,7 @@ public class AuthController {
     
     
     @PostMapping("/doctor-login")
-    public AuthResponse createAuthenticationTokenDoctor(@RequestBody AuthRequestDto authRequest) throws Exception {
+    public DoctorAuthResponse createAuthenticationTokenDoctor(@RequestBody AuthRequestDto authRequest) throws Exception {
     
         System.out.println(authRequest);
         // This code works for both Admins and Therapists now!
@@ -59,8 +64,9 @@ public class AuthController {
         
         final UserDetails userDetails = userDetailsService.loadUserByUsername(authRequest.getEmail());
         final String jwt = jwtUtil.generateToken(userDetails);
+        Optional<Therapist> therapist = therapistRepository.findByEmail(authRequest.getEmail());
         
-        return new AuthResponse(jwt);
+        return new DoctorAuthResponse(jwt,therapist);
     }
     
     
