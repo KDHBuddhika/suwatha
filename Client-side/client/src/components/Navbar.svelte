@@ -1,26 +1,26 @@
 <script lang="ts">
-  import { currentPage } from '../stores/navigation';
+  import { push } from 'svelte-spa-router';
   import Logo2 from './Logo2.svelte';
   
   let mobileMenuOpen = false;
   
   const navItems = [
-    { label: 'Home', page: 'home' },
-    { label: 'About Us', page: 'about' },
-    { label: 'Terms & Conditions', page: 'terms' },
-    { label: 'Feedback', page: 'feedback' },
-    { label: 'Privacy Policy', page: 'privacy' },
+    { label: 'Home', path: '/' },
+    { label: 'About Us', path: '/about' },
+    { label: 'Terms & Conditions', path: '/terms' },
+    { label: 'Feedback', path: '/feedback' },
+    { label: 'Privacy Policy', path: '/privacy' },
   ];
   
-  function navigateTo(page: string) {
-    currentPage.set(page);
+  function navigateTo(path: string) {
+    push(path);
     mobileMenuOpen = false;
   }
 </script>
 
 <nav class="navbar">
   <div class="nav-container">
-    <div class="nav-brand" on:click={() => navigateTo('home')} on:keydown>
+    <div class="nav-brand" on:click={() => navigateTo('/')} on:keydown>
       <Logo2 />
       <span class="brand-text">Manosara</span>
     </div>
@@ -29,15 +29,15 @@
       {#each navItems as item}
         <button 
           class="nav-link"
-          class:active={$currentPage === item.page}
-          on:click={() => navigateTo(item.page)}
+          class:active={window.location.pathname === item.path}
+          on:click={() => navigateTo(item.path)}
         >
           {item.label}
         </button>
       {/each}
       <button 
         class="nav-link doctor-login"
-        on:click={() => navigateTo('doctor-login')}
+        on:click={() => navigateTo('/doctor-login')}
       >
         Doctor Login
       </button>

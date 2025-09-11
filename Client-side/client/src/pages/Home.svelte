@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { currentPage } from '../stores/navigation';
+  import { push } from 'svelte-spa-router';
   import { Video, MessageCircle, Ear } from 'lucide-svelte';
   import ServiceLoadingOverlay from '../components/ServiceLoadingOverlay.svelte';
   
@@ -16,8 +16,8 @@
     // Show loading for 3 seconds then navigate
     setTimeout(() => {
       isLoading = false;
-      currentPage.set(page);
-    }, 8000);
+      push(getPagePath(page));
+    }, 3000);
   }
   
   function getServiceName(page: string) {
@@ -26,6 +26,15 @@
       case 'chat': return 'Chat Support';
       case 'special-support': return 'Special Support';
       default: return 'Service';
+    }
+  }
+  
+  function getPagePath(page: string) {
+    switch(page) {
+      case 'video': return '/video-consultation';
+      case 'chat': return '/chat';
+      case 'special-support': return '/special-support';
+      default: return '/';
     }
   }
   

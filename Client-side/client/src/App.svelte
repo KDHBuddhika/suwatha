@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { currentPage } from './stores/navigation';
+  import router from 'svelte-spa-router';
   import { authStore, authActions } from './stores/auth';
   
   import LoadingScreen from './components/LoadingScreen.svelte';
   import MainLayout from './layouts/MainLayout.svelte';
-  import ServiceLoadingOverlay from './components/ServiceLoadingOverlay.svelte';
   import DoctorDashboard from './doctor-dashboard/DoctorDashboard.svelte';
+  import LiveVideoSession from './doctor-dashboard/pages/LiveVideoSession.svelte';
+
+
   
   import Home from './pages/Home.svelte';
   import About from './pages/About.svelte';
@@ -17,53 +19,45 @@
   import Video from './pages/Video.svelte';
   import Chat from './pages/Chat.svelte';
   import SpecialSupport from './pages/SpecialSupport.svelte';
+  // import VideoConsultation from './pages/VideoConsultation.svelte';
   
   let isLoading = true;
-  let currentPageValue = 'home';
+  
+  // Define routes
+  const routes = {
+    '/': Home,
+    '/about': About,
+    '/terms': Terms,
+    '/feedback': Feedback,
+    '/privacy': Privacy,
+    '/doctor-login': DoctorLogin,
+    '/video': Video,
+    '/chat': Chat,
+    '/special-support': SpecialSupport,
+    // '/video-consultation': VideoConsultation,
+    '/doctor-dashboard': DoctorDashboard,
+    '/live-video-session': LiveVideoSession
+    
+  };
   
   onMount(() => {
     setTimeout(() => {
       isLoading = false;
-    }, 6500);
+    }, 10500);
     
     // Check for existing authentication
     authActions.checkAuth();
-    
-    // Subscribe to page changes
-    currentPage.subscribe(page => {
-      currentPageValue = page;
-    });
   });
 </script>
 
 <LoadingScreen bind:isLoading />
 
 {#if !isLoading}
-  {#if $authStore.isAuthenticated && currentPageValue === 'doctor-dashboard'}
+  {#if $authStore.isAuthenticated && window.location.pathname === '/doctor-dashboard'}
     <DoctorDashboard />
   {:else}
     <MainLayout>
-      {#if currentPageValue === 'home'}
-        <Home />
-      {:else if currentPageValue === 'about'}
-        <About />
-      {:else if currentPageValue === 'terms'}
-        <Terms />
-      {:else if currentPageValue === 'feedback'}
-        <Feedback />
-      {:else if currentPageValue === 'privacy'}
-        <Privacy />
-      {:else if currentPageValue === 'doctor-login'}
-        <DoctorLogin />
-      {:else if currentPageValue === 'video'}
-        <Video />
-      {:else if currentPageValue === 'chat'}
-        <Chat />
-      {:else if currentPageValue === 'special-support'}
-        <SpecialSupport />
-      {:else}
-        <Home />
-      {/if}
+      <svelte:component this={router} {routes} />
     </MainLayout>
   {/if}
 {/if}

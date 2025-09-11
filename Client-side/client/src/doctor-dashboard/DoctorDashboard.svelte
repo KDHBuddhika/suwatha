@@ -1,23 +1,35 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { currentDashboardPage } from './stores/navigation';
-  import { authActions } from '../stores/auth';
-  
+  import { authActions, authStore } from '../stores/auth';
   import DashboardLayout from './layouts/DashboardLayout.svelte';
   import Overview from './pages/Overview.svelte';
   import Patients from './pages/Patients.svelte';
-  
+  import SessionSummaryForm from './pages/SessionSummaryForm.svelte';
+  import ProfileSettings from './pages/ProfileSettings.svelte';
+  import { push } from 'svelte-spa-router';
+
   let currentPageValue = 'overview';
-  
+
   onMount(() => {
-    // Check authentication and load initial data
     authActions.checkAuth();
     
-    // Subscribe to page changes
+    const unsubscribe = authStore.subscribe(state => {
+      if (!state.isAuthenticated) {
+        push('/doctor-login');
+      }
+    });
+
     currentDashboardPage.subscribe(page => {
       currentPageValue = page;
     });
+
+    return unsubscribe;
   });
+
+  // function handleLogout() {
+  //   authActions.logout();
+  // }
 </script>
 
 <DashboardLayout>
@@ -25,39 +37,18 @@
     <Overview />
   {:else if currentPageValue === 'patients'}
     <Patients />
-  {:else if currentPageValue === 'appointments'}
-    <div class="coming-soon">
-      <h2>Appointments</h2>
-      <p>This feature is coming soon...</p>
-    </div>
-  {:else if currentPageValue === 'sessions'}
-    <div class="coming-soon">
-      <h2>Sessions</h2>
-      <p>This feature is coming soon...</p>
-    </div>
-  {:else if currentPageValue === 'reports'}
-    <div class="coming-soon">
-      <h2>Reports</h2>
-      <p>This feature is coming soon...</p>
-    </div>
-  {:else if currentPageValue === 'schedule'}
-    <div class="coming-soon">
-      <h2>Schedule</h2>
-      <p>This feature is coming soon...</p>
-    </div>
-  {:else if currentPageValue === 'analytics'}
-    <div class="coming-soon">
-      <h2>Analytics</h2>
-      <p>This feature is coming soon...</p>
-    </div>
+  {:else if currentPageValue === 'summary'}
+    <SessionSummaryForm />
   {:else if currentPageValue === 'settings'}
+    <ProfileSettings />
+  {:else}
     <div class="coming-soon">
-      <h2>Settings</h2>
+      <h2>{currentPageValue.charAt(0).toUpperCase() + currentPageValue.slice(1)}</h2>
       <p>This feature is coming soon...</p>
     </div>
-  {:else}
-    <Overview />
   {/if}
+  
+  <!-- <button on:click={handleLogout}>Logout</button> -->
 </DashboardLayout>
 
 <style>

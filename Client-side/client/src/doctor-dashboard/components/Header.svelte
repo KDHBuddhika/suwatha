@@ -1,20 +1,64 @@
 <script lang="ts">
-  import { authStore } from '../../stores/auth';
+  import { authStore, authActions } from '../../stores/auth';
   import { Bell, Search, Menu } from 'lucide-svelte';
+  import NotificationModal from './NotificationModal.svelte';
 
+  // --- STATE ---
   let searchQuery = '';
   let showNotifications = false;
+  let selectedNotification = null;
 
+  // --- MOCK DATA ---
   const notifications = [
-    { id: 1, message: 'New appointment request from John Smith', time: '5 min ago', unread: true },
-    { id: 2, message: 'Session completed with Emily Davis', time: '1 hour ago', unread: true },
-    { id: 3, message: 'Weekly report is ready for review', time: '2 hours ago', unread: false }
+    { 
+      id: 1, 
+      message: 'New appointment request from John Smith', 
+      time: '5 min ago', 
+      unread: true,
+      details: 'John Smith has requested a video session for tomorrow at 3:00 PM. Please review their profile and confirm or deny the appointment.'
+    },
+    { 
+      id: 2, 
+      message: 'Session completed with Emily Davis', 
+      time: '1 hour ago', 
+      unread: true,
+      details: 'Your 45-minute chat session with Emily Davis has ended. A session summary is now pending your review.'
+    },
+    { 
+      id: 3, 
+      message: 'Weekly report is ready for review', 
+      time: '2 hours ago', 
+      unread: false,
+      details: 'Your performance and patient engagement report for the week of Jan 20-26 is available in the Reports section.'
+    }
   ];
 
+  // --- FUNCTIONS ---
   function toggleNotifications() {
     showNotifications = !showNotifications;
   }
+
+  function viewNotification(notification) {
+    selectedNotification = notification;
+    showNotifications = false;
+  }
+
+  function handleCloseModal() {
+    selectedNotification = null;
+  }
+
+  // NOTE: A logout function can be triggered from a dropdown menu
+  // that could be associated with clicking the user-profile div.
+  // For simplicity, the direct logout button has been removed as per the style restoration.
 </script>
+
+<!-- Render the modal here if a notification is selected -->
+{#if selectedNotification}
+  <NotificationModal 
+    notification={selectedNotification}
+    on:close={handleCloseModal}
+  />
+{/if}
 
 <header class="dashboard-header">
   <div class="header-left">
@@ -47,7 +91,12 @@
           </div>
           <div class="notifications-list">
             {#each notifications as notification}
-              <div class="notification-item" class:unread={notification.unread}>
+              <!-- svelte-ignore a11y-click-events-have-key-events -->
+              <div 
+                class="notification-item" 
+                class:unread={notification.unread} 
+                on:click={() => viewNotification(notification)}
+              >
                 <p class="notification-message">{notification.message}</p>
                 <span class="notification-time">{notification.time}</span>
               </div>
@@ -57,19 +106,22 @@
       {/if}
     </div>
 
+    <!-- THIS IS THE CORRECTED USER PROFILE SECTION -->
     <div class="user-profile">
       <div class="user-avatar">
-        <img src="https://images.pexels.com/photos/5327580/pexels-photo-5327580.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop" alt="Doctor Avatar" />
+        <!-- You can make this image dynamic later if needed -->
+        <img src="https://images.pexels.com/photos/5327580/pexels-photo-5327580.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop" alt="Therapist Avatar" />
       </div>
       <div class="user-info">
-        <span class="user-name">{$authStore.user?.name || 'Doctor'}</span>
-        <span class="user-role">{$authStore.user?.specialization || 'Mental Health Professional'}</span>
+        <!-- Only the therapist's name is displayed now -->
+        <span class="user-name">{$authStore.user?.name || 'Therapist'}</span>
       </div>
     </div>
   </div>
 </header>
 
 <style>
+  /* Styles are restored to your original provided version */
   .dashboard-header {
     height: 80px;
     background: white;
@@ -90,7 +142,7 @@
   }
 
   .mobile-menu-btn {
-    display: none;
+    display: none; /* Hidden by default, shown in media query */
     background: none;
     border: none;
     color: #6B7280;
@@ -105,7 +157,7 @@
   }
 
   .search-input {
-    width: 100%;
+    width: 80%;
     padding: 0.75rem 1rem 0.75rem 3rem;
     border: 2px solid #E5E7EB;
     border-radius: 0.5rem;
@@ -119,7 +171,7 @@
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
   }
 
-  .search-input :global(.search-icon) {
+  .search-icon {
     position: absolute;
     left: 1rem;
     top: 50%;
@@ -148,7 +200,7 @@
     border-radius: 0.5rem;
     transition: all 0.2s ease;
   }
-
+  
   .notification-btn:hover {
     background: #F3F4F6;
     color: #374151;
@@ -213,8 +265,9 @@
     padding: 1rem 1.5rem;
     border-bottom: 1px solid #F3F4F6;
     transition: background 0.2s ease;
+    cursor: pointer;
   }
-
+  
   .notification-item:hover {
     background: #F9FAFB;
   }
@@ -222,14 +275,14 @@
   .notification-item.unread {
     background: #EEF2FF;
   }
-
+  
   .notification-message {
     margin: 0 0 0.25rem 0;
     font-size: 0.875rem;
     color: #374151;
     line-height: 1.4;
   }
-
+  
   .notification-time {
     font-size: 0.75rem;
     color: #9CA3AF;
@@ -265,6 +318,7 @@
   .user-info {
     display: flex;
     flex-direction: column;
+    justify-content: center; /* This helps center the text vertically */
   }
 
   .user-name {
@@ -272,12 +326,8 @@
     font-weight: 600;
     color: #374151;
   }
-
-  .user-role {
-    font-size: 0.75rem;
-    color: #6B7280;
-  }
-
+  
+  /* Media Queries for responsiveness */
   @media (max-width: 1024px) {
     .mobile-menu-btn {
       display: block;

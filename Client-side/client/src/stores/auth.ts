@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { push } from 'svelte-spa-router';
 
 export interface User {
   id: string;
@@ -13,63 +14,77 @@ export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
   loading: boolean;
+  token: string | null;
 }
 
 const initialState: AuthState = {
   isAuthenticated: false,
   user: null,
-  loading: false
+  loading: false,
+  token: null,
 };
 
 export const authStore = writable<AuthState>(initialState);
 
-// Demo credentials
-const DEMO_CREDENTIALS = {
-  email: 'doctor@manosara.com',
-  password: 'demo123'
-};
-
-const DEMO_DOCTOR: User = {
-  id: 'doc_001',
-  email: 'doctor@manosara.com',
-  name: 'Dr. Sarah Johnson',
-  role: 'doctor',
-  specialization: 'Clinical Psychology',
-  licenseNumber: 'PSY-12345'
-};
-
 export const authActions = {
   login: async (email: string, password: string): Promise<boolean> => {
     authStore.update(state => ({ ...state, loading: true }));
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    if (email === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
-      authStore.update(state => ({
-        ...state,
-        isAuthenticated: true,
-        user: DEMO_DOCTOR,
-        loading: false
-      }));
-      return true;
-    } else {
+
+    try {
+      const response = await fetch('http://localhost:8090/api/auth/doctor-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const { token, therapist } = data;
+
+        const user: User = {
+          id: therapist.id,
+          email: therapist.email,
+          name: therapist.name,
+          role: 'doctor',
+          specialization: therapist.specializations.map((s: any) => s.name).join(', '),
+          licenseNumber: therapist.licenseNumber,
+        };
+
+        authStore.update(state => ({
+          ...state,
+          isAuthenticated: true,
+          user,
+          token,
+          loading: false,
+        }));
+
+        localStorage.setItem('manosara_auth', JSON.stringify({
+          user,
+          token,
+          timestamp: Date.now(),
+        }));
+
+        return true;
+      } else {
+        authStore.update(state => ({ ...state, loading: false }));
+        return false;
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
       authStore.update(state => ({ ...state, loading: false }));
       return false;
     }
   },
 
   logout: () => {
-    authStore.update(state => ({
-      ...state,
-      isAuthenticated: false,
-      user: null,
-      loading: false
-    }));
+    authStore.set(initialState);
+    localStorage.removeItem('manosara_auth');
+    push('/doctor-login');
   },
 
   checkAuth: () => {
-    // In a real app, this would check for stored tokens
     const stored = localStorage.getItem('manosara_auth');
     if (stored) {
       try {
@@ -77,23 +92,18 @@ export const authActions = {
         authStore.update(state => ({
           ...state,
           isAuthenticated: true,
-          user: authData.user
+          user: authData.user,
+          token: authData.token,
         }));
       } catch (error) {
         localStorage.removeItem('manosara_auth');
       }
     }
-  }
+  },
 };
 
-// Subscribe to auth changes and persist to localStorage
 authStore.subscribe(state => {
-  if (state.isAuthenticated && state.user) {
-    localStorage.setItem('manosara_auth', JSON.stringify({
-      user: state.user,
-      timestamp: Date.now()
-    }));
-  } else {
+  if (!state.isAuthenticated) {
     localStorage.removeItem('manosara_auth');
   }
 });

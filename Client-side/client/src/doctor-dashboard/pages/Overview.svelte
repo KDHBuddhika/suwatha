@@ -1,495 +1,317 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { doctorStore, doctorActions } from '../../stores/doctor';
-  import { Users, Calendar, Clock, TrendingUp, Video, MessageCircle, Phone } from 'lucide-svelte';
+  import Header from '../components/Header.svelte';
+  import IncomingSessionModal from './IncomingSessionModal.svelte';
+  import { sessionRequestStore } from '../stores/sessionStore'; // 1. Import the session store
+    import { push } from 'svelte-spa-router'; // Import the router's push function
 
-  onMount(() => {
-    doctorActions.loadDashboardData();
-  });
+  let status = 'AVAILABLE';
+  const stats = { sessionsToday: 4, sessionsThisWeek: 28, averageRating: 4.8 };
+  const pendingSummaries = [{ id: 1, patientId: 'a1b2c3d4' }, { id: 2, patientId: 'e5f6g7h8' }];
 
-  $: stats = $doctorStore.stats;
-  $: todayAppointments = $doctorStore.appointments.filter(apt => 
-    apt.date === new Date().toISOString().split('T')[0]
-  );
-  $: recentPatients = $doctorStore.patients.slice(0, 5);
+  // 2. This function simulates a real-time event from a server
+  function simulateSessionRequest() {
+    sessionRequestStore.set({
+      patientId: 'Patient-e5f6g7h8',
+      sessionType: 'VIDEO'
+    });
+  }
+
+  // 3. These functions handle the modal events and clear the store to hide it
+  function handleJoinSession() {
+    console.log("Joining session with:", $sessionRequestStore?.patientId);
+      push('/live-video-session');
+    sessionRequestStore.set(null); // Hide the modal
+  }
+
+  function handleCancelSession() {
+    console.log("Cancelling session with:", $sessionRequestStore?.patientId);
+    // Navigate to the live video session pagE
+
+    // Clear the store to hide the modal
+    sessionRequestStore.set(null); 
+  }
 </script>
 
-<div class="overview-container">
-  <div class="page-header">
-    <h1>Dashboard Overview</h1>
-    <p>Welcome back! Here's what's happening with your practice today.</p>
-  </div>
+<!-- 4. Conditionally render the modal based on the store's value -->
+{#if $sessionRequestStore}
+  <IncomingSessionModal 
+    patientId={$sessionRequestStore.patientId}
+    sessionType={$sessionRequestStore.sessionType}
+    on:join={handleJoinSession}
+    on:cancel={handleCancelSession}
+  />
+{/if}
 
-  <!-- Stats Cards -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon patients">
-        <Users size={24} />
+<!-- 5. Apply a class to the container when the modal is active to blur the background -->
+<div class="page-container" class:modal-active={$sessionRequestStore}>
+
+  <main class="content-area">
+    <div class="status-controller">
+      <div class="status-options">
+        <button class:active={status === 'AVAILABLE'} on:click={() => status = 'AVAILABLE'}>AVAILABLE</button>
+        <button class:active={status === 'BUSY'} on:click={() => status = 'BUSY'}>BUSY</button>
+        <button class:active={status === 'OFFLINE'} on:click={() => status = 'OFFLINE'}>OFFLINE</button>
       </div>
-      <div class="stat-content">
-        <h3>{stats.totalPatients}</h3>
-        <p>Total Patients</p>
-        <span class="stat-change positive">+12% this month</span>
-      </div>
+      <p class="status-message">You are online and ready for new sessions.</p>
     </div>
 
-    <div class="stat-card">
-      <div class="stat-icon appointments">
-        <Calendar size={24} />
-      </div>
-      <div class="stat-content">
-        <h3>{stats.todayAppointments}</h3>
-        <p>Today's Appointments</p>
-        <span class="stat-change neutral">2 completed</span>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon hours">
-        <Clock size={24} />
-      </div>
-      <div class="stat-content">
-        <h3>{stats.weeklyHours}</h3>
-        <p>Weekly Hours</p>
-        <span class="stat-change positive">+5% vs last week</span>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon sessions">
-        <TrendingUp size={24} />
-      </div>
-      <div class="stat-content">
-        <h3>{stats.completedSessions}</h3>
-        <p>Completed Sessions</p>
-        <span class="stat-change positive">+8% this month</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="content-grid">
-    <!-- Today's Appointments -->
-    <div class="content-card">
-      <div class="card-header">
-        <h2>Today's Appointments</h2>
-        <span class="appointment-count">{todayAppointments.length} scheduled</span>
-      </div>
-      <div class="appointments-list">
-        {#each todayAppointments as appointment}
-          <div class="appointment-item">
-            <div class="appointment-time">
-              <span class="time">{appointment.time}</span>
-              <span class="duration">{appointment.duration}min</span>
-            </div>
-            <div class="appointment-details">
-              <h4>{appointment.patientName}</h4>
-              <div class="appointment-type">
-                {#if appointment.type === 'video'}
-                  <Video size={16} />
-                  <span>Video Session</span>
-                {:else if appointment.type === 'chat'}
-                  <MessageCircle size={16} />
-                  <span>Chat Session</span>
-                {:else}
-                  <Phone size={16} />
-                  <span>Special Support</span>
-                {/if}
-              </div>
-            </div>
-            <div class="appointment-status">
-              <span class="status-badge {appointment.status}">{appointment.status}</span>
-            </div>
-          </div>
-        {/each}
-        
-        {#if todayAppointments.length === 0}
-          <div class="empty-state">
-            <Calendar size={48} />
-            <p>No appointments scheduled for today</p>
-          </div>
-        {/if}
-      </div>
-    </div>
-
-    <!-- Recent Patients -->
-    <div class="content-card">
-      <div class="card-header">
-        <h2>Recent Patients</h2>
-        <a href="#patients" class="view-all">View All</a>
-      </div>
-      <div class="patients-list">
-        {#each recentPatients as patient}
-          <div class="patient-item">
-            <div class="patient-avatar">
-              <span>{patient.name.charAt(0)}</span>
-            </div>
-            <div class="patient-details">
-              <h4>{patient.name}</h4>
-              <p>Last session: {new Date(patient.lastSession).toLocaleDateString()}</p>
-            </div>
-            <div class="patient-status">
-              <span class="status-dot {patient.status}"></span>
-              <span class="session-count">{patient.sessionCount} sessions</span>
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
-  </div>
-
-  <!-- Quick Actions -->
-  <div class="quick-actions">
-    <h2>Quick Actions</h2>
-    <div class="actions-grid">
-      <button class="action-btn">
-        <Calendar size={20} />
-        <span>Schedule Appointment</span>
-      </button>
-      <button class="action-btn">
-        <Users size={20} />
-        <span>Add New Patient</span>
-      </button>
-      <button class="action-btn">
-        <MessageCircle size={20} />
-        <span>Start Chat Session</span>
-      </button>
-      <button class="action-btn">
-        <Video size={20} />
-        <span>Start Video Call</span>
+    <!-- DEMO BUTTON -->
+    <div class="demo-controls">
+      <button class="demo-button" on:click={simulateSessionRequest}>
+        Simulate Incoming Session Request
       </button>
     </div>
-  </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><p class="stat-label">Sessions Today</p><h3 class="stat-value">{stats.sessionsToday}</h3></div>
+      <div class="stat-card"><p class="stat-label">Sessions This Week</p><h3 class="stat-value">{stats.sessionsThisWeek}</h3></div>
+      <div class="stat-card"><p class="stat-label">Average Rating</p><h3 class="stat-value">{stats.averageRating} / 5.0</h3></div>
+    </div>
+
+    <div class="pending-actions">
+      <h4>Pending Summaries</h4>
+      {#if pendingSummaries.length > 0}
+        <ul class="summary-list">
+          {#each pendingSummaries as summary}
+            <li class="summary-item">
+              <span>Session with Patient-{summary.patientId} needs a summary.</span>
+              <button class="add-summary-btn">Add Summary</button>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="no-summaries">All caught up! No summaries are pending.</p>
+      {/if}
+    </div>
+  </main>
 </div>
 
 <style>
-  .overview-container {
-    max-width: 1400px;
-    margin: 0 auto;
+
+  /* This new class applies the blur effect when the modal is active */
+  .focused-modal-active {
+    filter: blur(5px);
+    /* Optional: prevent interaction with the background content */
+    pointer-events: none;
+    user-select: none;
   }
 
-  .page-header {
-    margin-bottom: 2rem;
+  .dashboard-container {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #F9FAFB;
+    min-height: 100vh;
+     transition: filter 0.2s ease-in-out;
   }
 
-  .page-header h1 {
-    font-size: 2rem;
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background-color: #FFFFFF;
+    border-bottom: 1px solid #E5E7EB;
+  }
+
+  .header-left .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  
+  .platform-name {
+    font-size: 1.25rem;
     font-weight: 600;
-    color: #374151;
-    margin-bottom: 0.5rem;
+    color: #1F2937;
   }
 
-  .page-header p {
+  .header-right .user-menu {
+    position: relative;
+  }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+  }
+
+  .demo-button {
+      background-color: #DBEAFE;
+      color: #1E40AF;
+      border: 1px solid #93C5FD;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 500;
+  }
+
+  .user-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+  }
+
+  .profile-pic {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  
+  .user-name {
+    font-weight: 500;
+    color: #374151;
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 120%;
+    background-color: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    width: 160px;
+    z-index: 10;
+  }
+
+  .dropdown-menu a {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.875rem;
+  }
+
+  .dropdown-menu a:hover {
+    background-color: #F3F4F6;
+  }
+
+  .main-content {
+    padding: 2.5rem;
+  }
+
+  .status-controller {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .status-options {
+    display: inline-flex;
+    background-color: #E5E7EB;
+    border-radius: 9999px;
+    padding: 0.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .status-options button {
+    padding: 0.5rem 1.5rem;
+    border: none;
+    border-radius: 9999px;
+    font-weight: 600;
+    cursor: pointer;
+    background-color: transparent;
     color: #6B7280;
-    font-size: 1rem;
-    margin: 0;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  
+  .status-options button.active {
+    background-color: #FFFFFF;
+    color: #10B981;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  }
+
+  .status-message {
+    color: #6B7280;
+    font-size: 0.875rem;
   }
 
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
   }
 
   .stat-card {
-    background: white;
-    border-radius: 1rem;
+    background-color: #FFFFFF;
     padding: 1.5rem;
-    border: 1px solid #E5E7EB;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    transition: all 0.2s ease;
-  }
-
-  .stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  }
-
-  .stat-icon {
-    width: 50px;
-    height: 50px;
     border-radius: 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-  }
-
-  .stat-icon.patients { background: linear-gradient(135deg, #4F46E5, #7C3AED); }
-  .stat-icon.appointments { background: linear-gradient(135deg, #10B981, #059669); }
-  .stat-icon.hours { background: linear-gradient(135deg, #F59E0B, #D97706); }
-  .stat-icon.sessions { background: linear-gradient(135deg, #EF4444, #DC2626); }
-
-  .stat-content h3 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #374151;
-    margin: 0 0 0.25rem 0;
-  }
-
-  .stat-content p {
-    color: #6B7280;
-    font-size: 0.875rem;
-    margin: 0 0 0.5rem 0;
-  }
-
-  .stat-change {
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-
-  .stat-change.positive { color: #10B981; }
-  .stat-change.negative { color: #EF4444; }
-  .stat-change.neutral { color: #6B7280; }
-
-  .content-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin-bottom: 2rem;
-  }
-
-  .content-card {
-    background: white;
-    border-radius: 1rem;
     border: 1px solid #E5E7EB;
-    overflow: hidden;
-  }
-
-  .card-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid #E5E7EB;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .card-header h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #374151;
-    margin: 0;
-  }
-
-  .appointment-count {
-    background: #EEF2FF;
-    color: #4F46E5;
-    padding: 0.25rem 0.75rem;
-    border-radius: 1rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  .view-all {
-    color: #4F46E5;
-    text-decoration: none;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  .appointments-list, .patients-list {
-    padding: 0;
-  }
-
-  .appointment-item, .patient-item {
-    display: flex;
-    align-items: center;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid #F3F4F6;
-    transition: background 0.2s ease;
-  }
-
-  .appointment-item:hover, .patient-item:hover {
-    background: #F9FAFB;
-  }
-
-  .appointment-time {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-width: 80px;
-    margin-right: 1rem;
-  }
-
-  .time {
-    font-weight: 600;
-    color: #374151;
-    font-size: 0.875rem;
-  }
-
-  .duration {
-    font-size: 0.75rem;
-    color: #6B7280;
-  }
-
-  .appointment-details {
-    flex: 1;
-  }
-
-  .appointment-details h4 {
-    margin: 0 0 0.25rem 0;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #374151;
-  }
-
-  .appointment-type {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #6B7280;
-    font-size: 0.75rem;
-  }
-
-  .status-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 1rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    text-transform: capitalize;
-  }
-
-  .status-badge.scheduled {
-    background: #FEF3E7;
-    color: #92400E;
-  }
-
-  .status-badge.completed {
-    background: #F0FDF4;
-    color: #166534;
-  }
-
-  .status-badge.cancelled {
-    background: #FEF2F2;
-    color: #991B1B;
-  }
-
-  .patient-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #4F46E5, #7C3AED);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    margin-right: 1rem;
-  }
-
-  .patient-details {
-    flex: 1;
-  }
-
-  .patient-details h4 {
-    margin: 0 0 0.25rem 0;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #374151;
-  }
-
-  .patient-details p {
-    margin: 0;
-    font-size: 0.75rem;
-    color: #6B7280;
-  }
-
-  .patient-status {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
-
-  .status-dot.active { background: #10B981; }
-  .status-dot.inactive { background: #6B7280; }
-  .status-dot.pending { background: #F59E0B; }
-
-  .session-count {
-    font-size: 0.75rem;
-    color: #6B7280;
-  }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 1.5rem;
-    color: #9CA3AF;
     text-align: center;
   }
 
-  .empty-state p {
-    margin: 1rem 0 0 0;
+  .stat-label {
+    margin: 0 0 0.5rem 0;
+    color: #6B7280;
     font-size: 0.875rem;
   }
 
-  .quick-actions {
-    background: white;
-    border-radius: 1rem;
+  .stat-value {
+    margin: 0;
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #1F2937;
+  }
+
+  .pending-actions {
+    background-color: #FFFFFF;
     padding: 1.5rem;
+    border-radius: 0.75rem;
     border: 1px solid #E5E7EB;
+    max-width: 500px;
+  }
+  
+  .pending-actions h4 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      font-size: 1.125rem;
+      color: #1F2937;
   }
 
-  .quick-actions h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #374151;
-    margin: 0 0 1rem 0;
+  .summary-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
   }
 
-  .actions-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-  }
-
-  .action-btn {
+  .summary-item {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 0.75rem;
-    padding: 1rem;
-    background: #F8FAFC;
-    border: 1px solid #E5E7EB;
-    border-radius: 0.5rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #E5E7EB;
+    font-size: 0.875rem;
     color: #374151;
+  }
+  
+  .summary-item:last-child {
+      border-bottom: none;
+  }
+
+  .add-summary-btn {
+    background-color: #4F46E5;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s;
   }
 
-  .action-btn:hover {
-    background: #4F46E5;
-    color: white;
-    border-color: #4F46E5;
+  .add-summary-btn:hover {
+    background-color: #4338CA;
   }
 
-  @media (max-width: 1024px) {
-    .content-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .stats-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  @media (max-width: 768px) {
-    .stats-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .actions-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
+  .no-summaries {
+    color: #6B7280;
+    font-size: 0.875rem;
+    text-align: center;
+    padding: 1rem 0;
   }
 </style>

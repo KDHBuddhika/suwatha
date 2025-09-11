@@ -1,6 +1,6 @@
 <script lang="ts">
   import { authActions, authStore } from '../stores/auth';
-  import { currentPage } from '../stores/navigation';
+  import { push } from 'svelte-spa-router';
   
   let loginData = {
     email: '',
@@ -22,10 +22,10 @@
     const success = await authActions.login(loginData.email, loginData.password);
     
     if (success) {
-      currentPage.set('doctor-dashboard');
+      push('/doctor-dashboard');
     } else {
       showError = true;
-      errorMessage = 'Invalid credentials. Try: doctor@manosara.com / demo123';
+      errorMessage = 'Invalid credentials. Please try again.';
     }
   }
 </script>
@@ -35,11 +35,6 @@
     <div class="login-header">
       <h1>Doctor Portal</h1>
       <p>Access your professional dashboard</p>
-      <div class="demo-credentials">
-        <p><strong>Demo Credentials:</strong></p>
-        <p>Email: doctor@manosara.com</p>
-        <p>Password: demo123</p>
-      </div>
     </div>
 
     {#if showError}
@@ -83,7 +78,7 @@
         <a href="#forgot" class="forgot-link">Forgot password?</a>
       </div>
 
-       <button type="submit" class="login-btn" disabled={$authStore.loading}>
+      <button type="submit" class="login-btn" disabled={$authStore.loading}>
           {#if $authStore.loading}
             <span class="spinner"></span>
             Signing in...

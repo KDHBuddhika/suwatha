@@ -1,7 +1,8 @@
 <script lang="ts">
   import { currentDashboardPage } from '../stores/navigation';
   import { authActions } from '../../stores/auth';
-  import { currentPage } from '../../stores/navigation';
+  import { push } from 'svelte-spa-router';
+  import Logo2 from '../../components/Logo2.svelte';
   import { 
     Home, 
     Users, 
@@ -11,7 +12,9 @@
     Settings, 
     LogOut,
     Activity,
-    Clock
+    Clock,
+    Video,
+    ClipboardEdit
   } from 'lucide-svelte';
 
   const menuItems = [
@@ -20,6 +23,12 @@
     { id: 'appointments', label: 'Appointments', icon: Calendar },
     { id: 'sessions', label: 'Sessions', icon: MessageSquare },
     { id: 'reports', label: 'Reports', icon: FileText },
+     // A link to the live session page (changes the URL)
+    { id: 'live-session', label: 'Live Session', icon: Video, path: '/live-video-session' },
+    
+    // --- NEW ITEM ADDED HERE ---
+    // A link to an internal dashboard page (changes the store)
+    { id: 'summary', label: 'Session Summary', icon: ClipboardEdit },
     { id: 'schedule', label: 'Schedule', icon: Clock },
     { id: 'analytics', label: 'Analytics', icon: Activity },
     { id: 'settings', label: 'Settings', icon: Settings }
@@ -31,15 +40,14 @@
 
   function handleLogout() {
     authActions.logout();
-    currentPage.set('home');
   }
 </script>
 
 <aside class="sidebar">
   <div class="sidebar-header">
     <div class="logo">
-      <div class="logo-icon">🪷</div>
-      <span class="logo-text">Manosara</span>
+      <div class="logo-icon "><Logo2/></div>
+      <!-- <span class="logo-text">Manosara</span> -->
     </div>
     <div class="doctor-badge">Doctor Portal</div>
   </div>
@@ -71,7 +79,7 @@
 
 <style>
   .sidebar {
-    width: 280px;
+    width: 270px;
     height: 100vh;
     background: white;
     border-right: 1px solid #E5E7EB;
