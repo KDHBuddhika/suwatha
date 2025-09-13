@@ -5,6 +5,8 @@ import com.spring.Suwatha.session_module.dto.sessionManagement.SessionListViewDt
 import com.spring.Suwatha.session_module.entity.Session;
 import com.spring.Suwatha.session_module.entity.SessionFeedback;
 import com.spring.Suwatha.session_module.repo.SessionRepository;
+import com.spring.Suwatha.shared.exception.ResourceNotFoundException;
+import com.spring.Suwatha.user_module.repository.TherapistRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -14,9 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class SessionQueryService {
     
     private final SessionRepository sessionRepository;
+    private final TherapistRepository therapistRepository;
     
-    public SessionQueryService(SessionRepository sessionRepository) {
+    public SessionQueryService(SessionRepository sessionRepository, TherapistRepository therapistRepository) {
         this.sessionRepository = sessionRepository;
+        this.therapistRepository = therapistRepository;
     }
     
     
@@ -70,6 +74,29 @@ public class SessionQueryService {
         dto.calculateAndSetDuration();
         
         return dto;
+    }
+    
+    
+    
+    @Transactional(readOnly = true)
+    public Page<SessionListViewDto> getSessionsForTherapist(
+            String therapistEmail,
+            String searchTerm,
+            String status,
+            String communicationType,
+            Pageable pageable) {
+        
+        // Find the therapist by email to securely get their ID
+        Long therapistId = therapistRepository.findByEmail(therapistEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Therapist with email " + therapistEmail + " not found."))
+                .getId();
+        
+        // Call the new custom repository method with the therapist's ID
+        Page<Session> sessionPage = sessionRepository.findWithFiltersForTherapist(
+                therapistId, searchTerm, status, communicationType, pageable);
+        
+        // The mapping logic remains the same!
+        return sessionPage.map(this::convertToDto);
     }
     
 }
