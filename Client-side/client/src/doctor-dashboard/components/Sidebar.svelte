@@ -1,8 +1,9 @@
 <script lang="ts">
   import { currentDashboardPage } from '../stores/navigation';
-  import { authActions } from '../../stores/auth';
+  import { authStore,authActions } from '../../stores/auth';
   import { push } from 'svelte-spa-router';
   import Logo2 from '../../components/Logo2.svelte';
+ 
   import { 
     Home, 
     Users, 
@@ -45,9 +46,18 @@
 
 <aside class="sidebar">
   <div class="sidebar-header">
-    <div class="logo">
-      <div class="logo-icon "><Logo2/></div>
-      <!-- <span class="logo-text">Manosara</span> -->
+    <div class="profile-header">
+      <div class="profile-avatar">
+        {#if $authStore.user?.profilePictureUrl}
+          <img src={`http://localhost:8090/file/${$authStore.user.profilePictureUrl}`} alt="Therapist Avatar" />
+        {:else}
+          <!-- Fallback initials if no image is available -->
+          <span class="avatar-initials">
+            {$authStore.user?.name?.charAt(0).toUpperCase() || 'D'}
+          </span>
+        {/if}
+      </div>
+      <span class="profile-name">{$authStore.user?.name || 'Therapist'}</span>
     </div>
     <div class="doctor-badge">Doctor Portal</div>
   </div>
@@ -95,21 +105,43 @@
   .sidebar-header {
     padding: 2rem 1.5rem;
     border-bottom: 1px solid #E5E7EB;
+    text-align: center ;
   }
-
-  .logo {
+  /* --- 3. NEW STYLES for Profile Avatar --- */
+  .profile-header {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 0.75rem;
     margin-bottom: 1rem;
   }
 
-  .logo-icon {
-    font-size: 2rem;
+  .profile-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background-color: #EEF2FF; /* Fallback background */
+    border: 2px solid #C7D2FE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
   }
 
-  .logo-text {
-    font-size: 1.5rem;
+  .profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .avatar-initials {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #4338CA;
+  }
+
+  .profile-name {
+    font-size: 1.125rem;
     font-weight: 600;
     color: #374151;
   }
@@ -122,6 +154,7 @@
     font-size: 0.875rem;
     font-weight: 500;
     text-align: center;
+    display: inline-block;
   }
 
   .sidebar-nav {

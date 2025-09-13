@@ -1,16 +1,16 @@
 package com.spring.Suwatha.user_module.service;
 
 import com.spring.Suwatha.file_module.FileService;
+import com.spring.Suwatha.session_module.repo.SessionFeedbackRepository;
+import com.spring.Suwatha.session_module.repo.SessionRepository;
 import com.spring.Suwatha.shared.email.EmailService;
 import com.spring.Suwatha.shared.exception.FileExistsException;
 import com.spring.Suwatha.shared.exception.InvalidPasswordException;
 import com.spring.Suwatha.shared.exception.ResourceNotFoundException;
-import com.spring.Suwatha.user_module.dto.therapist.PasswordChangeDto;
-import com.spring.Suwatha.user_module.dto.therapist.TherapistCreateDto;
-import com.spring.Suwatha.user_module.dto.therapist.TherapistDetailsUpdateDto;
-import com.spring.Suwatha.user_module.dto.therapist.TherapistViewDto;
+import com.spring.Suwatha.user_module.dto.therapist.*;
 import com.spring.Suwatha.user_module.entity.Specialization;
 import com.spring.Suwatha.user_module.entity.Therapist;
+import com.spring.Suwatha.user_module.entity.TherapistStatus;
 import com.spring.Suwatha.user_module.repository.SpecializationRepository;
 import com.spring.Suwatha.user_module.repository.TherapistRepository;
 import jakarta.transaction.Transactional;
@@ -24,6 +24,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -48,6 +51,12 @@ public class TherapistService {
     
     @Autowired
     private  FileService fileService;
+    
+    @Autowired
+    private SessionRepository sessionRepository;
+    
+    @Autowired
+    private SessionFeedbackRepository feedbackRepository;
     
     @Value("${project.poster.path}")
     private String path;
@@ -229,6 +238,56 @@ public class TherapistService {
     }
     
     
+    // -------------------------------------  Update therapist status ----------------------------------------------
+    
+    @Transactional
+    public TherapistViewDto updateOwnStatus(String therapistEmail, TherapistStatusUpdateDto dto) {
+        // 1. Find the therapist by their email (which is unique and secure)
+        Therapist therapist = therapistRepository.findByEmail(therapistEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Therapist with email " + therapistEmail + " not found."));
+        
+       TherapistStatus newStatus = dto.getNewStatus();
+        
+        // 2. **BUSINESS RULE**: Prevent a therapist from setting their status to BUSY.
+        //    The BUSY status should only be set by the system when a session is assigned.
+        if (newStatus == TherapistStatus.BUSY) {
+            throw new IllegalArgumentException("Cannot manually set status to BUSY. This is handled by the system.");
+        }
+        
+        // 3. Update the status
+        therapist.setCurrentStatus(newStatus);
+        
+        // 4. Save the changes and return the updated profile
+        Therapist updatedTherapist = therapistRepository.save(therapist);
+        return toTherapistViewDto(updatedTherapist);
+    }
+    
+    
+    
+    // --------------------- get Dashboard Stats for therapist --------------------------------
+    
+    public TherapistDashboardStatsDto getDashboardStats(String therapistEmail) {
+        // 1. Find the therapist to get their ID
+        Therapist therapist = therapistRepository.findByEmail(therapistEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Therapist with email " + therapistEmail + " not found."));
+        Long therapistId = therapist.getId();
+        
+        // 2. Define the time ranges
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        // Assuming the week starts on Monday
+        LocalDateTime startOfWeek = LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();
+        
+        // 3. Fetch the stats from the repositories
+        long sessionsToday = sessionRepository.countSessionsForTherapistSince(therapistId, startOfToday);
+        long sessionsThisWeek = sessionRepository.countSessionsForTherapistSince(therapistId, startOfWeek);
+        
+        // Use Optional to safely handle a null result if no ratings exist
+        Double avgRating = Optional.ofNullable(feedbackRepository.getAverageRatingForTherapist(therapistId))
+                .orElse(0.0);
+        
+        // 4. Assemble and return the DTO
+        return new TherapistDashboardStatsDto(sessionsToday, sessionsThisWeek, avgRating);
+    }
     
     
 }

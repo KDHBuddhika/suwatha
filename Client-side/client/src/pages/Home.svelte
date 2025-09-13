@@ -17,7 +17,7 @@
     setTimeout(() => {
       isLoading = false;
       push(getPagePath(page));
-    }, 3000);
+    }, 6500);
   }
   
   function getServiceName(page: string) {
@@ -31,8 +31,8 @@
   
   function getPagePath(page: string) {
     switch(page) {
-      case 'video': return '/video-consultation';
-      case 'chat': return '/chat';
+      case 'video': return '/live-video-session';
+      case 'chat': return '/chat-session';
       case 'special-support': return '/special-support';
       default: return '/';
     }

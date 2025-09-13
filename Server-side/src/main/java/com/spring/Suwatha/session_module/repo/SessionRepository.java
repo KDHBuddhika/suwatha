@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -84,5 +85,9 @@ public interface SessionRepository extends JpaRepository<Session,Long> ,SessionR
     """,
             countQuery = "SELECT COUNT(s) FROM Session s")
     Page<Session> findAllForManagementView(Pageable pageable);
+    
+    
+    @Query("SELECT COUNT(s) FROM Session s WHERE s.therapist.id = :therapistId AND s.startTime >= :startTime")
+    long countSessionsForTherapistSince(Long therapistId, LocalDateTime startTime);
     
 }

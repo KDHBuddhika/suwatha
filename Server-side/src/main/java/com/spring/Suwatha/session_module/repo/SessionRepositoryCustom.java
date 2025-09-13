@@ -11,4 +11,7 @@ public interface SessionRepositoryCustom {
             String communicationType,
             Pageable pageable
     );
+    
+    Page<Session> findWithFiltersForTherapist(
+            Long therapistId, String searchTerm, String status, String communicationType, Pageable pageable);
 }
