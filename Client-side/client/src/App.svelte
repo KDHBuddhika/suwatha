@@ -7,6 +7,7 @@
   import MainLayout from './layouts/MainLayout.svelte';
   import DoctorDashboard from './doctor-dashboard/DoctorDashboard.svelte';
   import LiveVideoSession from './doctor-dashboard/pages/LiveVideoSession.svelte';
+  import ChatSession from './doctor-dashboard/pages/ChatSession.svelte';
 
 
   
@@ -36,7 +37,8 @@
     '/special-support': SpecialSupport,
     // '/video-consultation': VideoConsultation,
     '/doctor-dashboard': DoctorDashboard,
-    '/live-video-session': LiveVideoSession
+    '/live-video-session': LiveVideoSession,
+    '/chat-session': ChatSession
     
   };
   

@@ -8,6 +8,7 @@ export interface User {
   role: 'doctor' | 'patient';
   specialization?: string;
   licenseNumber?: string;
+  profilePictureUrl?: string; 
 }
 
 export interface AuthState {
@@ -50,6 +51,7 @@ export const authActions = {
           role: 'doctor',
           specialization: therapist.specializations.map((s: any) => s.name).join(', '),
           licenseNumber: therapist.licenseNumber,
+          profilePictureUrl: therapist.profilePictureUrl,
         };
 
         authStore.update(state => ({

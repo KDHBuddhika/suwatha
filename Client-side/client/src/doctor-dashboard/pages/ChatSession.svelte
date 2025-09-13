@@ -1,40 +1,30 @@
 <script lang="ts">
-
-  // Svelte Lifecycle
+  // --- 1. ADDED IMPORTS ---
   import { onMount, onDestroy } from 'svelte';
-
-  // Application Stores
   import { authStore } from '../../stores/auth'; // Ensure this path is correct
 
-  // UI Components & Icons
-  import { Mic, MicOff, Video, VideoOff, Share2, PhoneOff, User, Clock, BrainCircuit, MessageSquare, Book, Brush, Sparkles, Send } from 'lucide-svelte';
-  import Whiteboard from '../components/Whiteboard.svelte';
-  import MagicCardGame from '../components/MagicCardGame.svelte';
+  // --- ICONS AND COMPONENTS ---
+  import { Send, Share2, PhoneOff, Clock, BrainCircuit, MessageSquare, Book } from 'lucide-svelte';
 
-  // =========================================================================
-  // 2. STATE MANAGEMENT
-  // =========================================================================
+  // --- 2. NEW STATE VARIABLES FOR FEATURE CONTROL ---
+  let featuresEnabled = false; // Controls visibility of advanced features. Default to false.
+  let isCheckingFeatures = true; // Shows a loading state until the check is complete.
 
-  // --- Feature Flag & Loading State ---
-  let featuresEnabled = false;      // Controls visibility of AI, tools, and 3-column layout.
-  let isCheckingFeatures = true;  // Shows a loading state until the feature check is complete.
-
-  // --- Core Session State ---
-  const patientId = 'Patient-e5f6g7h8';
-  let isMuted = false;
-  let isVideoOff = false;
-  let sessionTime = 0;
-  let timerInterval: ReturnType<typeof setInterval>;
-  let activeOverlay: 'whiteboard' | 'magic-card' | null = null;
-
-  // --- Form & AI Data ---
+  // --- EXISTING STATE & MOCK DATA ---
+  const patientId = 'Patient-a1b2c3d4';
+  let chatHistory = [
+    { sender: 'Patient', text: 'Hi Dr. Johnson, thanks for seeing me.', time: '10:01 AM' },
+    { sender: 'Therapist', text: 'Of course. How have you been since our last session?', time: '10:01 AM' },
+    { sender: 'Patient', text: 'Not great, to be honest. My anxiety has been really high this week.', time: '10:02 AM' },
+    { sender: 'Patient', text: 'I\'ve been having trouble with sleep again, just like we talked about.', time: '10:03 AM' },
+  ];
   const aiAssistant = {
     sentiment: 'Negative',
-    keywords: ['lonely', 'stress', 'sleep', 'anxious'],
+    keywords: ['anxiety', 'stress', 'sleep'],
     prompts: [
-      "Can you tell me more about your sleep patterns?",
-      "How does that feeling of loneliness manifest?",
-      "What situations tend to trigger your stress?"
+      "Can you describe what the anxiety feels like?",
+      "What have you tried so far to manage your sleep?",
+      "Has anything specific triggered this increase in anxiety?"
     ]
   };
   let sessionFormData = { city: '', illness: '', gender: '', age: null, level: '', privateNotes: '' };
@@ -44,42 +34,49 @@
   const CITIES = ['Colombo', 'Kaluthara', 'Kandy', 'Galle', 'Jaffna', 'Negombo', 'Matara'];
   let citySuggestions: string[] = [];
 
-  // =========================================================================
-  // 3. LIFECYCLE HOOKS
-  // =========================================================================
+  let sessionTime = 0;
+  let timerInterval: ReturnType<typeof setInterval>;
+  let newMessage = '';
+  let chatContainer: HTMLElement;
 
+  // --- 3. API CALL IN onMount ---
   onMount(async () => {
-    // Start session timer and lock body scroll
+    // Start session timer and lock scroll immediately
     timerInterval = setInterval(() => sessionTime++, 1000);
     document.body.style.overflow = 'hidden';
+    scrollToBottom();
 
-    // Get auth token from the store for the API call
+    // Get auth token from the store
     let authState;
     const unsubscribe = authStore.subscribe(s => { authState = s; });
     unsubscribe();
 
     if (!authState?.token) {
       console.error("Authentication token not found.");
-      isCheckingFeatures = false; // Stop loading; features remain disabled
+      isCheckingFeatures = false; // Stop loading, features will remain disabled
       return;
     }
 
     // Check the feature enablement endpoint
     try {
       const response = await fetch('http://localhost:8090/api/doctor/enable', {
-        headers: { 'Authorization': `Bearer ${authState.token}` }
+        headers: {
+          'Authorization': `Bearer ${authState.token}`
+        }
       });
       
       if (response.ok) {
         const hasAccess = await response.json();
         if (hasAccess === true) {
-          featuresEnabled = true; // Enable features if API returns true
+          featuresEnabled = true; // Enable all features if response is true
         }
       }
+      // If response is not ok or not true, featuresEnabled remains false
     } catch (error) {
       console.error("Error checking feature enablement:", error);
+      // featuresEnabled will remain false
     } finally {
-      isCheckingFeatures = false; // Hide loading screen
+      isCheckingFeatures = false; // We are done checking, show the UI
     }
   });
 
@@ -88,14 +85,8 @@
     document.body.style.overflow = 'auto';
   });
 
-  // =========================================================================
-  // 4. REACTIVE STATEMENTS (Derived State)
-  // =========================================================================
-
-  // Format session time into MM:SS
+  // --- EXISTING FUNCTIONS (unchanged) ---
   $: formattedTime = new Date(sessionTime * 1000).toISOString().substr(14, 5);
-
-  // Update city suggestions based on input
   $: {
     if (sessionFormData.city && sessionFormData.city.length > 1) {
       citySuggestions = CITIES.filter(c => c.toLowerCase().startsWith(sessionFormData.city.toLowerCase()));
@@ -103,146 +94,100 @@
       citySuggestions = [];
     }
   }
-
-  // =========================================================================
-  // 5. COMPONENT METHODS
-  // =========================================================================
-
   function selectCity(city: string) {
     sessionFormData.city = city;
     citySuggestions = [];
   }
-
-  function toggleOverlay(tool: 'whiteboard' | 'magic-card') {
-    activeOverlay = activeOverlay === tool ? null : tool;
-  }
-
-  function handleEndSession() {
-    alert("Session Ended");
-  }
-
   function handleSubmitSessionDetails() {
-    if (!sessionFormData.level) {
-      alert('Risk Level is a required field.');
-      return;
-    }
+    if (!sessionFormData.level) { alert('Risk Level is a required field.'); return; }
     console.log("Submitting Session Details:", sessionFormData);
     alert("Session details have been submitted!");
-    // Reset form after submission
     sessionFormData = { city: '', illness: '', gender: '', age: null, level: '', privateNotes: '' };
   }
+  function scrollToBottom() {
+    setTimeout(() => { if (chatContainer) { chatContainer.scrollTop = chatContainer.scrollHeight; } }, 0);
+  }
+  function handleSendMessage() {
+    if (newMessage.trim() === '') return;
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    chatHistory = [...chatHistory, { sender: 'Therapist', text: newMessage.trim(), time: currentTime }];
+    newMessage = '';
+    scrollToBottom();
+  }
+  function handleEndSession() { alert("Chat Session Ended"); }
 </script>
 
-<!-- =========================================================================
-     TEMPLATE (HTML)
-     ========================================================================== -->
+<!-- 4. The grid layout is now dynamic based on whether features are enabled -->
 <div class="session-container" style="grid-template-columns: {featuresEnabled ? '6fr 1fr 3fr' : '8fr 1fr'};">
 
-  <!-- Loading Screen (while checking features) -->
   {#if isCheckingFeatures}
     <div class="loading-screen">
-      <p>Initializing Session...</p>
+      <p>Initializing Secure Chat...</p>
     </div>
   {:else}
-    <!-- =======================================================================
-         Column 1: Patient Video & Collaboration Tools
-         ======================================================================= -->
-    <div class="column patient-video-column">
-      <div class="video-feed-large">
-        <div class="placeholder-content">
-          <User size={96} stroke-width={1} />
-          <p>Patient's Video Stream</p>
-        </div>
+    <!-- Left Column: Chat Interface (Always visible) -->
+    <div class="column chat-column">
+      <div class="chat-display-area" bind:this={chatContainer}>
+        {#each chatHistory as message}
+          <div class="message-wrapper" class:therapist-wrapper={message.sender === 'Therapist'}>
+            <div class="message-bubble" class:patient={message.sender === 'Patient'} class:therapist={message.sender === 'Therapist'}>
+              <p class="message-text">{message.text}</p>
+              <span class="message-time">{message.time}</span>
+            </div>
+          </div>
+        {/each}
       </div>
-
-      <!-- Collaboration Overlays (only rendered if features are enabled) -->
-      {#if featuresEnabled}
-        {#if activeOverlay === 'whiteboard'}
-          <div class="collaboration-overlay"><Whiteboard /></div>
-        {/if}
-        {#if activeOverlay === 'magic-card'}
-          <div class="collaboration-overlay"><MagicCardGame /></div>
-        {/if}
-      {/if}
-
-      <div class="video-overlay-info"><span>{patientId}</span></div>
+      <form class="chat-input-area" on:submit|preventDefault={handleSendMessage}>
+        <textarea 
+          placeholder="Type your message..." 
+          bind:value={newMessage}
+          on:keydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+        ></textarea>
+        <button type="submit"><Send size={20} /></button>
+      </form>
     </div>
 
-    <!-- =======================================================================
-         Column 2: Therapist Controls & Self-View (Always Visible)
-         ======================================================================= -->
-    <div class="column therapist-controls-column">
-      <div class="therapist-view">
-        <div class="video-feed-small"><div class="placeholder-content"><p>Your Video</p></div></div>
+    <!-- Middle Column: Controls (Always visible) -->
+    <div class="column controls-column">
+      <div class="therapist-info-card">
+        <h4>You</h4>
+        <!-- This name could also be dynamic from the authStore -->
+        <p>{$authStore.user?.name || 'Therapist'}</p>
       </div>
-
       <div class="session-controls">
-        <!-- Basic Controls -->
-        <button class="control-btn" on:click={() => isMuted = !isMuted} class:active={isMuted}>
-          {#if isMuted}<MicOff size={24} /><span>Unmute</span>{:else}<Mic size={24} /><span>Mute</span>{/if}
-        </button>
-        <button class="control-btn" on:click={() => isVideoOff = !isVideoOff} class:active={isVideoOff}>
-          {#if isVideoOff}<VideoOff size={24} /><span>Start Video</span>{:else}<Video size={24} /><span>Stop Video</span>{/if}
-        </button>
-        
-        <!-- Advanced Tool Controls (only if features enabled) -->
-        {#if featuresEnabled}
-          <button class="control-btn" on:click={() => toggleOverlay('whiteboard')} class:tool-active={activeOverlay === 'whiteboard'}>
-            <Brush size={24} /><span>Whiteboard</span>
-          </button>
-          <button class="control-btn" on:click={() => toggleOverlay('magic-card')} class:tool-active={activeOverlay === 'magic-card'}>
-            <Sparkles size={24} /><span>Magic Card</span>
-          </button>
-        {/if}
-
         <button class="control-btn"><Share2 size={24} /><span>Share</span></button>
       </div>
-
       <div class="end-session-container">
         <button class="end-session-btn" on:click={handleEndSession}><PhoneOff size={20} /><span>End Session</span></button>
       </div>
     </div>
 
-    <!-- =======================================================================
-         Column 3: AI Assistant & Forms (Conditionally Rendered)
-         ======================================================================= -->
+    <!-- 5. Right Column: AI Assistant & Info Panel (Conditionally rendered) -->
     {#if featuresEnabled}
       <div class="column ai-assistant-column">
-        <!-- Session Timer Panel -->
         <div class="panel-card info-card">
           <div class="panel-header"><Clock size={18} /><h3>Session Timer</h3></div>
           <div class="timer-display">{formattedTime}</div>
         </div>
-
-        <!-- AI Assistant Panel -->
         <div class="panel-card ai-card">
           <div class="panel-header"><BrainCircuit size={18} /><h3>AI Assistant</h3></div>
           <div class="ai-section"><label>Live Sentiment</label><p class="sentiment-tag">{aiAssistant.sentiment}</p></div>
-          <div class="ai-section"><label>Detected Keywords</label><div class="keywords-list">{#each aiAssistant.keywords as keyword}<span class="keyword-tag">{keyword}</span>{/each}</div></div>
-          <div class="ai-section"><label>Suggested Prompts</label><ul class="prompts-list">{#each aiAssistant.prompts as prompt}<li><MessageSquare size={16} /><span>{prompt}</span></li>{/each}</ul></div>
+          <div class="ai-section"><label>Detected Keywords</label><div class="keywords-list">{#each aiAssistant.keywords as k}<span class="keyword-tag">{k}</span>{/each}</div></div>
+          <div class="ai-section"><label>Suggested Prompts</label><ul class="prompts-list">{#each aiAssistant.prompts as p}<li><MessageSquare size={16} /><span>{p}</span></li>{/each}</ul></div>
         </div>
-
-        <!-- Private Notes Panel -->
         <div class="panel-card notes-card">
           <div class="panel-header"><Book size={18} /><h3>Private Notes</h3></div>
           <textarea placeholder="Your scratchpad (not saved)..."></textarea>
         </div>
-
-        <!-- Session Details Form Panel -->
         <div class="panel-card session-form-card">
           <div class="panel-header"><MessageSquare size={18} /><h3>Session Details Form</h3></div>
           <form class="session-form" on:submit|preventDefault={handleSubmitSessionDetails}>
             <div class="form-group city-group">
               <label for="city">City</label>
               <input type="text" id="city" placeholder="Type to search..." bind:value={sessionFormData.city} autocomplete="off" />
-              {#if citySuggestions.length > 0}
-                <ul class="autocomplete-suggestions">{#each citySuggestions as city}<li on:click={() => selectCity(city)}>{city}</li>{/each}</ul>
-              {/if}
+              {#if citySuggestions.length > 0}<ul class="autocomplete-suggestions">{#each citySuggestions as city}<li on:click={() => selectCity(city)}>{city}</li>{/each}</ul>{/if}
             </div>
-            <div class="form-group">
-              <label for="illness">Illness</label>
-              <select id="illness" bind:value={sessionFormData.illness}><option value="" disabled>Select an option</option>{#each illnessOptions as option}<option value={option}>{option}</option>{/each}</select>
-            </div>
+            <div class="form-group"><label for="illness">Illness</label><select id="illness" bind:value={sessionFormData.illness}><option value="" disabled>Select an option</option>{#each illnessOptions as option}<option value={option}>{option}</option>{/each}</select></div>
             <div class="form-group-inline">
               <div class="form-group"><label for="gender">Gender</label><select id="gender" bind:value={sessionFormData.gender}><option value="" disabled>Select...</option>{#each genderOptions as option}<option value={option}>{option}</option>{/each}</select></div>
               <div class="form-group"><label for="age">Age</label><input type="number" id="age" bind:value={sessionFormData.age} placeholder="e.g., 34"/></div>
@@ -257,22 +202,22 @@
   {/if}
 </div>
 
-
 <style>
-/* ==========================================================================
+ /* ==========================================================================
    1. Base Layout & Grid System
    ========================================================================== */
 
 .session-container {
   display: grid;
-  grid-template-columns: 6fr 1fr 3fr; /* Defines the three-column layout */
+  grid-template-columns: 6fr 1fr 3fr; /* Main layout columns */
   height: 90vh;
   width: 100%;
   background-color: #111827; /* Dark page background */
-  color: #F9FAFB;
+  color: #F9FAFB; /* Default text color */
   gap: 1rem;
   padding: 1rem;
   box-sizing: border-box;
+  
 }
 
 .column {
@@ -283,64 +228,129 @@
 
 
 /* ==========================================================================
-   2. Left Column: Main Video Area (Patient)
+   2. Left Column: Chat Area
    ========================================================================== */
 
-.patient-video-column {
-  position: relative; /* For positioning overlays */
-}
-
-.video-feed-large {
-  flex-grow: 1; /* Fills available vertical space */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #000;
-  border: 1px solid #374151;
+.chat-column {
+  background-color: #1F2937; /* Column background */
   border-radius: 1rem;
+  padding: 1rem;
 }
 
-.placeholder-content {
-  color: #6B7280;
-  text-align: center;
+/* --- Chat Message Display --- */
+.chat-display-area {
+  flex-grow: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.video-overlay-info {
-  position: absolute;
-  bottom: 1rem;
-  left: 1rem;
-  z-index: 10;
-  background-color: rgba(0, 0, 0, 0.6);
-  padding: 0.5rem 1rem;
+.message-wrapper {
+  display: flex;
+  width: 100%;
+}
+
+.message-wrapper.therapist-wrapper {
+  justify-content: flex-end; /* Align therapist messages to the right */
+}
+
+.message-bubble {
+  max-width: 75%;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  line-height: 1.5;
+}
+
+.message-bubble.patient {
+  background-color: #374151;
+  border-bottom-left-radius: 0.25rem; /* "Tailed" bubble effect */
+}
+
+.message-bubble.therapist {
+  background-color: #4F46E5; /* Accent color for therapist */
+  border-bottom-right-radius: 0.25rem; /* "Tailed" bubble effect */
+}
+
+.message-text {
+  margin: 0;
+}
+
+.message-time {
+  display: block;
+  text-align: right;
+  font-size: 0.75rem;
+  color: #9CA3AF;
+  margin-top: 0.25rem;
+}
+
+/* --- Chat Input Area --- */
+.chat-input-area {
+  display: flex;
+  gap: 0.5rem;
+  border-top: 1px solid #374151;
+  padding-top: 1rem;
+}
+
+.chat-input-area textarea {
+  flex-grow: 1;
+  background-color: #374151;
+  color: #F9FAFB;
+  border: 1px solid #4B5563;
   border-radius: 0.5rem;
-  font-size: 0.875rem;
+  padding: 0.75rem;
+  resize: none;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.chat-input-area textarea:focus {
+  outline: none;
+  border-color: #4F46E5;
+}
+
+.chat-input-area button {
+  background-color: #4F46E5;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0 1rem;
+  cursor: pointer;
 }
 
 
 /* ==========================================================================
-   3. Middle Column: Therapist Video & Controls
+   3. Middle Column: Controls & Information
    ========================================================================== */
 
-.therapist-controls-column {
-  justify-content: space-between; /* Pushes therapist video up and end button down */
+.controls-column {
+  justify-content: space-between;
 }
 
-.video-feed-small {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #000;
-  border: 1px solid #374151;
+/* --- Therapist Info Card --- */
+.therapist-info-card {
+  background-color: #1F2937;
+  padding: 1rem;
   border-radius: 1rem;
+  text-align: center;
 }
 
+.therapist-info-card h4,
+.therapist-info-card p {
+  margin: 0;
+}
+
+.therapist-info-card p {
+  font-size: 0.875rem;
+  color: #9CA3AF;
+  margin-top: 0.25rem;
+}
+
+/* --- Session Control Buttons --- */
 .session-controls {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
 }
 
 .control-btn {
@@ -349,40 +359,27 @@
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  width: 70px;
-  height: 70px;
   background: #374151;
   color: #F9FAFB;
   border: none;
+  padding: 0.75rem;
   border-radius: 50%;
+  width: 70px;
+  height: 70px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.control-btn span {
-  font-size: 0.75rem;
 }
 
 .control-btn:hover {
   background: #4B5563;
 }
 
-/* Active/Stateful button styles */
-.control-btn.active {
-  background-color: #DC2626; /* e.g., for Muted mic */
-}
-
-.control-btn.tool-active {
-  background-color: #4F46E5; /* e.g., for active whiteboard */
+.control-btn span {
+  font-size: 0.75rem;
 }
 
 .end-session-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
   width: 100%;
-  background-color: #DC2626;
+  background-color: #DC2626; /* Destructive action color */
   color: white;
   border: none;
   border-radius: 0.5rem;
@@ -390,6 +387,14 @@
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.end-session-btn:hover {
+  background-color: #B91C1C;
 }
 
 
@@ -426,7 +431,7 @@
   font-weight: 600;
 }
 
-/* --- Specific Panel Components (Timer, AI, Tags) --- */
+/* --- Specific Panel Cards --- */
 .timer-display {
   font-size: 2.5rem;
   font-weight: 700;
@@ -447,12 +452,12 @@
 }
 
 .sentiment-tag {
-  display: inline-block;
   background-color: #FEF2F2;
   color: #B91C1C;
   padding: 0.25rem 0.75rem;
   border-radius: 1rem;
   font-weight: 600;
+  display: inline-block;
 }
 
 .keywords-list {
@@ -470,80 +475,37 @@
 }
 
 .prompts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .prompts-list li {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   background-color: #4B5563;
   padding: 0.75rem;
   border-radius: 0.5rem;
   cursor: pointer;
   font-size: 0.875rem;
-}
-
-
-/* ==========================================================================
-   5. Overlays & Collaborative Tools
-   ========================================================================== */
-
-.collaboration-overlay {
-  position: absolute;
-  inset: 0; /* (top, right, bottom, left: 0) */
-  z-index: 5;
   display: flex;
-  flex-direction: column;
-  background-color: rgba(31, 41, 55, 0.9);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  box-sizing: border-box;
-}
-
-/* --- "Magic Card" Component --- */
-.magic-card {
-  gap: 1rem;
-  overflow-y: auto;
-}
-
-.magic-card h3 {
-  text-align: center;
-  margin: 0 0 1rem 0;
-  color: #E5E7EB;
-}
-
-.magic-card-field {
-  display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.magic-card-field label {
-  font-weight: 500;
-  color: #9CA3AF;
-}
-
-.magic-card-field textarea {
-  height: 100px;
-  background-color: #374151;
-  border: 1px solid #4B5563;
+.notes-card textarea {
+  width: 100%;
+  min-height: 120px;
+  background-color: #4B5563;
+  border: 1px solid #6B7280;
   border-radius: 0.5rem;
   color: #F9FAFB;
   padding: 0.75rem;
-  resize: none;
-  font-size: 1rem;
+  resize: vertical;
 }
 
-.magic-card-field textarea:focus {
-  outline: none;
-  border-color: #4F46E5;
-}
+
 
 /* --- NEW STYLES FOR THE SESSION DETAILS FORM --- */
   .session-form-card {

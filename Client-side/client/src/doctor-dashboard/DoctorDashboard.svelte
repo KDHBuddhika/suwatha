@@ -7,6 +7,7 @@
   import Patients from './pages/Patients.svelte';
   import SessionSummaryForm from './pages/SessionSummaryForm.svelte';
   import ProfileSettings from './pages/ProfileSettings.svelte';
+  import Sessions from './pages/Sessions.svelte';
   import { push } from 'svelte-spa-router';
 
   let currentPageValue = 'overview';
@@ -41,6 +42,8 @@
     <SessionSummaryForm />
   {:else if currentPageValue === 'settings'}
     <ProfileSettings />
+  {:else if currentPageValue === 'sessions'}
+    <Sessions />  
   {:else}
     <div class="coming-soon">
       <h2>{currentPageValue.charAt(0).toUpperCase() + currentPageValue.slice(1)}</h2>
